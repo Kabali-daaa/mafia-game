@@ -42,7 +42,10 @@
       "Bash(pkill -f \"tsx\")",
       "Bash(pkill -f \"next\")",
       "Bash(git commit -q -m 'Re-architect networking: Firebase Firestore instead of Socket.IO \\(Vercel-ready\\) *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git check-ignore *)",
+      "Bash(git commit -q -m 'Fix Firebase Admin init \\(singleton + guard settings\\) for serverless *)",
+      "Bash(vercel --version)"
     ]
   }
 }

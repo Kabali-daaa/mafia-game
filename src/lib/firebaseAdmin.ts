@@ -6,11 +6,17 @@ import "server-only";
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
-let app: App;
-let db: Firestore;
+// Cache on globalThis so it survives module duplication / dev hot-reloads
+// (otherwise each route bundle tries to call settings() again and crashes).
+const g = globalThis as unknown as { __mafiaDb?: Firestore };
 
 export function adminDb(): Firestore {
-  if (!db) {
+  if (g.__mafiaDb) return g.__mafiaDb;
+
+  let app: App;
+  if (getApps().length) {
+    app = getApps()[0];
+  } else {
     const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (!raw) {
       throw new Error(
@@ -18,13 +24,19 @@ export function adminDb(): Firestore {
       );
     }
     const creds = JSON.parse(raw);
-    // Vercel stores the private key with literal "\n"; turn them into newlines.
     if (typeof creds.private_key === "string") {
       creds.private_key = creds.private_key.replace(/\\n/g, "\n");
     }
-    app = getApps().length ? getApps()[0] : initializeApp({ credential: cert(creds) });
-    db = getFirestore(app);
-    db.settings({ ignoreUndefinedProperties: true });
+    app = initializeApp({ credential: cert(creds) });
   }
+
+  const db = getFirestore(app);
+  try {
+    db.settings({ ignoreUndefinedProperties: true });
+  } catch {
+    // settings() can only run once per Firestore instance — safe to ignore if
+    // it was already applied by an earlier module instance.
+  }
+  g.__mafiaDb = db;
   return db;
 }
