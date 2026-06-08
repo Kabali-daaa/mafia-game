@@ -511,6 +511,144 @@ section("Multiple Killers each strike (two deaths in one night)");
   A(alive(hv, v[0]) === false && alive(hv, v[1]) === false, "both Killers' victims died");
 }
 
+// ============================ EVEN MORE DETAILS ============================
+
+section("Godfather actually kills (it's a real Killer)");
+{
+  const { code, host, roles } = await setup("d1_", { godfather: 1, police: 1, villager: 2 });
+  const gf = roles.godfather[0], v = roles.villager;
+  await send(code, gf, "nightAction", { targetIds: [v[0]] });
+  await send(code, roles.police[0], "nightAction", { targetIds: [] });
+  await wait(600);
+  A(alive(await view(code, host), v[0]) === false, "Godfather's night kill works");
+}
+
+section("Witch revives a Villager+Item group shown as ONE person");
+{
+  const { code, host, roles } = await setup("d2_", { killer: 1, item: 1, witch: 1, villager: 2 });
+  const killer = roles.killer[0], item = roles.item[0], witch = roles.witch[0], v = roles.villager;
+  await send(code, item, "nightAction", { targetIds: [v[0]] }); // Item visits v0
+  await send(code, killer, "nightAction", { targetIds: [v[0]] }); // who is killed → Item dies too
+  await wait(600);
+  const wv = await view(code, witch);
+  A(wv.phase === "witch" && wv.prompt?.targets.length === 1, "Witch sees ONE primary for the villager+Item pair");
+  await send(code, witch, "nightAction", { targetIds: [wv.prompt.targets[0]] });
+  await wait(500);
+  const hv = await view(code, host);
+  A(alive(hv, v[0]) === true && alive(hv, item) === true, "Reviving brings back both the villager AND the Item");
+}
+
+section("Panchayat — killable at night with NO Cupid, and lynchable by day");
+{
+  // killable at night (no cupid)
+  let s = await setup("d3a_", { killer: 1, panchayath: 1, villager: 2 });
+  await send(s.code, s.roles.killer[0], "nightAction", { targetIds: [s.roles.panchayath[0]] });
+  await wait(600);
+  A(alive(await view(s.code, s.host), s.roles.panchayath[0]) === false, "Panchayat killable at night when no Cupid");
+  // lynchable by day
+  s = await setup("d3b_", { killer: 1, panchayath: 1, villager: 2 });
+  await send(s.code, s.host, "advance"); await wait(400); // → day, no death
+  const pan = s.roles.panchayath[0];
+  for (const id of s.ids) await send(s.code, id, "vote", { targetId: id === pan ? s.roles.killer[0] : pan });
+  await wait(600);
+  A(alive(await view(s.code, s.host), pan) === false, "Panchayat lynchable by day");
+}
+
+section("Jester does NOT win if killed at night (only by lynch)");
+{
+  const { code, host, roles } = await setup("d4_", { killer: 1, jester: 1, villager: 2 });
+  await send(code, roles.killer[0], "nightAction", { targetIds: [roles.jester[0]] });
+  await wait(600);
+  const hv = await view(code, host);
+  A(alive(hv, roles.jester[0]) === false, "Jester died at night");
+  A(hv.winner !== "neutral", "Jester does NOT win from a night kill");
+}
+
+section("Psycho Killer is NOT in the Killers' room");
+{
+  const { code, roles } = await setup("d5_", { killer: 1, psycho: 1, police: 1, villager: 2 });
+  const killer = roles.killer[0], psycho = roles.psycho[0];
+  A((await view(code, killer)).chat.killers !== null, "Killer can see the Killers' room");
+  A((await view(code, psycho)).chat.killers === null, "Psycho (lone wolf) canNOT see the Killers' room");
+}
+
+section("Dead players can't post Town chat");
+{
+  const { code, host, roles, ids } = await setup("d6_", { killer: 1, villager: 3 });
+  const killer = roles.killer[0], dead = roles.villager[0];
+  await send(code, killer, "nightAction", { targetIds: [dead] });
+  await wait(600); // → day, `dead` is dead
+  await send(code, dead, "chat", { channel: "town", text: "ghost message" });
+  await wait(300);
+  const someoneAlive = ids.find((id) => id !== dead && id !== killer);
+  const seen = ((await view(code, someoneAlive)).chat.town || []).some((l) => /ghost message/.test(l.text));
+  A(!seen, "a dead player's town message is rejected");
+}
+
+section("3-way tie → revote offers all three tied players");
+{
+  const { code, host, ids } = await setup("d7_", { killer: 1, villager: 5 });
+  await send(code, host, "advance"); await wait(400); // → day
+  const [a, b, c, d, e, f] = ids;
+  const votes = { [a]: b, [b]: c, [c]: a, [d]: a, [e]: b, [f]: c }; // a,b,c each get 2
+  for (const [voter, tgt] of Object.entries(votes)) await send(code, voter, "vote", { targetId: tgt });
+  await wait(600);
+  A((await view(code, a)).voteStage === "choice", "3-way tie reaches the Skip/Revote choice");
+  for (const id of ids) await send(code, id, "choice", { choice: "revote" });
+  await wait(600);
+  const dv = await view(code, d); // d is not one of the tied (a,b,c)
+  A(dv.voteStage === "revote" && dv.prompt?.targets.length === 3, "revote offers all 3 tied players");
+}
+
+section("Vigilante is never dealt at the start (transform-only)");
+{
+  const cr = await api("create", { name: "GOD", playerId: "d8h" });
+  const code = cr.data.code;
+  for (const L of ["a", "b", "c", "d"]) await api("join", { code, name: L, playerId: "d8" + L });
+  await api("action", { code, playerId: "d8h", type: "setConfig", payload: { config: { killer: 1, vigilante: 2, villager: 2 } } });
+  await wait(200);
+  const hv = await view(code, "d8h");
+  A(hv.config.vigilante === undefined, "Vigilante is stripped from the lobby config");
+}
+
+section("At most one Cupid allowed");
+{
+  const cr = await api("create", { name: "GOD", playerId: "d9h" });
+  const code = cr.data.code;
+  for (const L of ["a", "b", "c", "d"]) await api("join", { code, name: L, playerId: "d9" + L });
+  await api("action", { code, playerId: "d9h", type: "setConfig", payload: { config: { killer: 1, cupid: 2, villager: 1 } } });
+  const r = await api("action", { code, playerId: "d9h", type: "start", payload: {} });
+  A(r.status === 400 && /one cupid/i.test(r.data.error || ""), "blocks starting with two Cupids");
+}
+
+section("The God is never a valid target or voter");
+{
+  const { code, host, roles, ids } = await setup("d10_", { killer: 1, police: 1, villager: 2 });
+  const police = roles.police[0];
+  const pv = await view(code, police);
+  A(!pv.prompt.targets.includes(host), "host is not a night-action target");
+  await send(code, roles.killer[0], "nightAction", { targetIds: [] });
+  await send(code, police, "nightAction", { targetIds: [] });
+  await wait(500);
+  const anyDay = await view(code, ids[0]);
+  A(anyDay.prompt && !anyDay.prompt.targets.includes(host), "host is not a vote target");
+}
+
+section("Play again — host reset returns everyone to the lobby");
+{
+  const { code, host, roles, ids } = await setup("d11_", { killer: 1, villager: 2 });
+  await send(code, roles.killer[0], "nightAction", { targetIds: [roles.villager[0]] });
+  await wait(600); // killers reach parity → game ends
+  let hv = await view(code, host);
+  A(hv.phase === "ended", "game ended");
+  await send(code, host, "reset");
+  await wait(500);
+  hv = await view(code, host);
+  A(hv.phase === "lobby", "reset returns to the lobby");
+  A([hv.you, ...hv.players].filter((p) => !p.isHost).every((p) => p.roleId === null && p.alive),
+    "everyone is role-less and alive again after reset");
+}
+
 // ============================ SUMMARY ============================
 await wait(300);
 console.log(`\n══════════════════════════════════════`);
