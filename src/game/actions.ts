@@ -14,7 +14,6 @@ import {
   resolveChoice,
   resolveDay,
   resolveGodChoice,
-  resolveWitch,
   type Room,
   startGame,
   submitChoice,
@@ -120,9 +119,6 @@ export function applyAction(
         : [];
       if (room.phase === "night") {
         submitNightAction(room, playerId, targets);
-        maybeAdvance(room);
-      } else if (room.phase === "witch") {
-        resolveWitch(room, playerId, targets[0] ?? null);
       }
       return;
     }
@@ -150,7 +146,6 @@ export function applyAction(
     case "advance": {
       if (!isHost) return;
       if (room.phase === "night") advanceNight(room); // next role-group, or resolve on the last
-      else if (room.phase === "witch") resolveWitch(room, null, null);
       else if (room.phase === "day") {
         if (room.voteStage === "discussion") openVote(room); // open the vote
         else if (room.voteStage === "done") beginNight(room); // start the night

@@ -137,17 +137,19 @@ section("Item — chooses (gets a prompt), dies on a Killer");
   A(alive(await view(code, host), item) === false, "Item died after choosing the Killer");
 }
 
-section("Witch — revives a Lover pair shown as ONE person");
+section("Witch — shown who was ATTACKED, saves them (decides blind to the Doctor)");
 {
-  const { code, host, roles } = await setup("k7_", { killer: 1, cupid: 1, witch: 1, villager: 2 });
-  const witch = roles.witch[0], v = roles.villager;
-  await runNight(code, host, { [roles.cupid[0]]: [v[0], v[1]], [roles.killer[0]]: [v[0]] });
+  const { code, host, roles } = await setup("k7_", { killer: 1, witch: 1, villager: 2 });
+  const killer = roles.killer[0], witch = roles.witch[0], v = roles.villager;
+  // Killers act first; the Witch is then called and shown only the attacked player.
+  await stepTo(code, host, killer);
+  await send(code, killer, "nightAction", { targetIds: [v[0]] });
+  await stepTo(code, host, witch);
   const wv = await view(code, witch);
-  A(wv.phase === "witch" && wv.prompt?.targets.length === 1, "Witch shown ONE primary for the dead Lover pair");
-  await send(code, witch, "nightAction", { targetIds: [wv.prompt.targets[0]] });
-  await wait(500);
-  const hv = await view(code, host);
-  A(alive(hv, v[0]) === true && alive(hv, v[1]) === true, "Reviving the pair brought BOTH back");
+  A(JSON.stringify(wv.prompt?.targets) === JSON.stringify([v[0]]), "Witch is shown ONLY the attacked player");
+  await send(code, witch, "nightAction", { targetIds: [v[0]] }); // save them
+  await runNight(code, host, {});
+  A(alive(await view(code, host), v[0]) === true, "Witch's save kept the attacked player alive");
 }
 
 section("Psycho Killer → Vigilante on Doctor heal, then kills a Killer");
@@ -325,21 +327,24 @@ section("Item — cannot pick the same person twice");
   A(iv.phase === "night" && !iv.prompt.targets.includes(v[0]), "previously-visited player not offered again");
 }
 
-section("Witch — only 2 revives per game");
+section("Witch — only 2 saves per game");
 {
-  const { code, host, roles } = await setup("m5_", { killer: 1, witch: 1, villager: 3 });
+  const { code, host, roles } = await setup("m5_", { killer: 1, witch: 1, villager: 4 });
   const killer = roles.killer[0], witch = roles.witch[0], v = roles.villager;
+  // Two nights: killer attacks a villager, the Witch saves them (uses both saves).
   for (let i = 0; i < 2; i++) {
-    await runNight(code, host, { [killer]: [v[i]] });
-    const wv = await view(code, witch);
-    if (wv.phase === "witch") await send(code, witch, "nightAction", { targetIds: [v[i]] });
-    await wait(400);
+    await runNight(code, host, { [killer]: [v[i]], [witch]: [v[i]] });
+    A(alive(await view(code, host), v[i]) === true, `night ${i + 1}: Witch saved the victim`);
     await skipDay(code, host);
   }
-  await runNight(code, host, { [killer]: [v[2]] });
+  // 3rd night: the Witch is out of saves — her step shouldn't appear.
+  await stepTo(code, host, killer);
+  await send(code, killer, "nightAction", { targetIds: [v[2]] });
+  await runNight(code, host, {}); // step through; Witch has no turn
+  A((await view(code, witch)).prompt === null || (await view(code, host)).phase !== "night",
+    "Witch gets no turn after 2 saves");
   const hv = await view(code, host);
-  A(hv.phase !== "witch", "after 2 revives, no Witch interlude on the 3rd death");
-  A(alive(hv, v[2]) === false, "the 3rd victim stays dead");
+  A(alive(hv, v[2]) === false, "the 3rd victim dies (Witch is spent)");
 }
 
 section("Cupid acts on night 1 only");
@@ -453,17 +458,20 @@ section("Godfather actually kills (it's a real Killer)");
   A(alive(await view(code, host), v[0]) === false, "Godfather's night kill works");
 }
 
-section("Witch revives a Villager+Item group shown as ONE person");
+section("Witch save is BLIND to the Doctor (a redundant save is wasted)");
 {
-  const { code, host, roles } = await setup("d2_", { killer: 1, item: 1, witch: 1, villager: 2 });
-  const killer = roles.killer[0], item = roles.item[0], witch = roles.witch[0], v = roles.villager;
-  await runNight(code, host, { [item]: [v[0]], [killer]: [v[0]] });
-  const wv = await view(code, witch);
-  A(wv.phase === "witch" && wv.prompt?.targets.length === 1, "Witch sees ONE primary for the villager+Item pair");
-  await send(code, witch, "nightAction", { targetIds: [wv.prompt.targets[0]] });
-  await wait(500);
-  const hv = await view(code, host);
-  A(alive(hv, v[0]) === true && alive(hv, item) === true, "Reviving brings back both the villager AND the Item");
+  const { code, host, roles } = await setup("d2_", { killer: 1, doctor: 1, witch: 1, villager: 2 });
+  const killer = roles.killer[0], doctor = roles.doctor[0], witch = roles.witch[0], v = roles.villager;
+  // Killer attacks v0; Doctor ALSO heals v0; Witch (not knowing) saves v0 too.
+  await runNight(code, host, { [killer]: [v[0]], [doctor]: [v[0]], [witch]: [v[0]] });
+  A(alive(await view(code, host), v[0]) === true, "v0 survives (protected)");
+  // The Witch still spent a save even though the Doctor already had it covered.
+  await skipDay(code, host);
+  await stepTo(code, host, killer);
+  await send(code, killer, "nightAction", { targetIds: [v[1]] });
+  await stepTo(code, host, witch);
+  A((await view(code, witch)).prompt?.kind === "night", "Witch still has 1 save left (used 1 of 2)");
+  await runNight(code, host, {});
 }
 
 section("Panchayat — killable at night with NO Cupid, lynchable by day even WITH Cupid");
@@ -568,15 +576,17 @@ section("Play again — host reset returns everyone to the lobby");
 
 // ============================ RULE CLARIFICATIONS ============================
 
-section("Witch CANNOT revive herself (dies with her Lover, gets no turn)");
+section("Witch can save herself if she is the one attacked");
 {
-  const { code, host, roles } = await setup("r2_", { killer: 1, cupid: 1, witch: 1, villager: 2 });
-  const killer = roles.killer[0], witch = roles.witch[0], v = roles.villager;
-  await runNight(code, host, { [roles.cupid[0]]: [witch, v[0]], [killer]: [v[0]] });
-  const hv = await view(code, host);
-  A(hv.phase !== "witch", "no Witch turn when the Witch herself is dying");
-  A(alive(hv, witch) === false, "the Witch could not revive herself");
-  A(alive(hv, v[0]) === false, "her Lover also stayed dead");
+  const { code, host, roles } = await setup("r2_", { killer: 1, witch: 1, villager: 2 });
+  const killer = roles.killer[0], witch = roles.witch[0];
+  await stepTo(code, host, killer);
+  await send(code, killer, "nightAction", { targetIds: [witch] }); // attack the Witch
+  await stepTo(code, host, witch);
+  A((await view(code, witch)).prompt?.targets.includes(witch), "attacked Witch sees herself as savable");
+  await send(code, witch, "nightAction", { targetIds: [witch] }); // self-save
+  await runNight(code, host, {});
+  A(alive(await view(code, host), witch) === true, "Witch saved herself from the attack");
 }
 
 // ============================ HOST-STEPPED NIGHT ============================

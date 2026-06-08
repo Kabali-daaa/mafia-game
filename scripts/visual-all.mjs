@@ -51,6 +51,16 @@ async function openVote(code, host) {
   const hv = await view(code, host);
   if (hv.phase === "day" && hv.voteStage === "discussion") { await send(code, host, "advance"); await wait(300); }
 }
+// Advance the host's night steps until `pid` has a night prompt.
+async function stepTo(code, host, pid) {
+  for (let i = 0; i < 14; i++) {
+    const pv = await view(code, pid);
+    if (pv.phase !== "night") return false;
+    if (pv.prompt && pv.prompt.kind === "night") return true;
+    await send(code, host, "advance"); await wait(280);
+  }
+  return false;
+}
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", args: ["--no-sandbox"] });
 const MOBILE = { width: 390, height: 844, isMobile: true, hasTouch: true };
@@ -146,12 +156,15 @@ section("God controls during a deadlock (desktop)");
   await page.close();
 }
 
-section("Witch revive prompt (mobile)");
+section("Witch save prompt (mobile)");
 {
   const g = await game("vz5_", { killer: 1, witch: 1, villager: 2 });
-  await runNight(g.code, g.host, { [g.roles.killer[0]]: [g.roles.villager[0]] });
+  // Killer attacks, then the God calls the Witch (she's shown the attacked player).
+  await stepTo(g.code, g.host, g.roles.killer[0]);
+  await send(g.code, g.roles.killer[0], "nightAction", { targetIds: [g.roles.villager[0]] });
+  await stepTo(g.code, g.host, g.roles.witch[0]);
   const page = await openAs(g.code, g.roles.witch[0], "W", MOBILE);
-  A(await until(page, /Revive|fallen/i), "Witch sees the revive prompt");
+  A(await until(page, /save|attacked/i), "Witch sees the save prompt");
   A(!(await overflow(page)), "witch prompt: no overflow (mobile)");
   await shot(page, "vis-witch-mobile.png");
   await page.close();
