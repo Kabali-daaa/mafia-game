@@ -649,6 +649,38 @@ section("Play again — host reset returns everyone to the lobby");
     "everyone is role-less and alive again after reset");
 }
 
+// ============================ RULE CLARIFICATIONS ============================
+
+section("Panchayat CAN be lynched by day even while a Cupid is alive");
+{
+  const { code, host, roles, ids } = await setup("r1_", { killer: 1, cupid: 1, panchayath: 1, villager: 1 });
+  const killer = roles.killer[0], cupid = roles.cupid[0], pan = roles.panchayath[0], vill = roles.villager[0];
+  // Cupid links two NON-panchayat players, then everyone reaches the day.
+  await send(code, cupid, "nightAction", { targetIds: [killer, vill] });
+  await send(code, killer, "nightAction", { targetIds: [] });
+  await wait(500);
+  // Day vote: lynch the Panchayat (Cupid still alive).
+  for (const id of ids) await send(code, id, "vote", { targetId: id === pan ? killer : pan });
+  await wait(600);
+  const hv = await view(code, host);
+  A(alive(hv, cupid) === true, "Cupid is still alive");
+  A(alive(hv, pan) === false, "Panchayat was voted out by day despite the Cupid being alive");
+}
+
+section("Witch CANNOT revive herself (dies with her Lover, gets no turn)");
+{
+  const { code, host, roles } = await setup("r2_", { killer: 1, cupid: 1, witch: 1, villager: 2 });
+  const killer = roles.killer[0], cupid = roles.cupid[0], witch = roles.witch[0], v = roles.villager;
+  // Cupid links the Witch with a villager; the Killer kills that villager.
+  await send(code, cupid, "nightAction", { targetIds: [witch, v[0]] });
+  await send(code, killer, "nightAction", { targetIds: [v[0]] });
+  await wait(700);
+  const hv = await view(code, host);
+  A(hv.phase !== "witch", "no Witch turn when the Witch herself is dying");
+  A(alive(hv, witch) === false, "the Witch could not revive herself — she died with her Lover");
+  A(alive(hv, v[0]) === false, "her Lover also stayed dead");
+}
+
 // ============================ SUMMARY ============================
 await wait(300);
 console.log(`\n══════════════════════════════════════`);

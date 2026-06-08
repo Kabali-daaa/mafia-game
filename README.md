@@ -101,11 +101,11 @@ If two or more players tie for the most votes:
 | Role | Power |
 |------|-------|
 | 🚓 **Police** | Each night, investigate one player and **privately learn if they are a Killer**. With several Police, the squad makes **one shared check** per night (the most-chosen suspect). The Godfather fools them. |
-| 🩺 **Doctor** | Each night, **heal one player** — if they're attacked that night, they survive. (Healing the Psycho Killer triggers its transformation.) |
+| 🩺 **Doctor** | Each night, **heal one player** (may heal **themselves**) — if they're attacked that night, they survive. (Healing the Psycho Killer triggers its transformation.) |
 | 💘 **Cupid** | On **night 1 only**, pick **two players** to become **Lovers**. |
-| 🏛️ **Panchayat Thalaivar** | The village head — **Killers cannot kill them at night while any Cupid is alive** (still lynchable by day). |
+| 🏛️ **Panchayat Thalaivar** | The village head — **Killers cannot kill them at night while any Cupid is alive**. They can **always be voted out by day**, even while a Cupid lives. |
 | 🎲 **Item** | Each night, **choose someone to spend the night with** — you **can't pick the same person twice**. The Item **dies** if that player is a **Killer**, or if that player **dies that night**. |
-| 🧙 **Witch** | After each night, she learns **who died** and may **bring one of them back** — at most **twice per game**. |
+| 🧙 **Witch** | After each night, she learns **who died** and may **bring one of them back** — at most **twice per game**. She **can't revive herself** (if she dies that night, she has no turn). |
 | 🧑‍🌾 **Villager** | No special power. Use discussion and votes to find the Killers. |
 | 🔫 **Vigilante** | *Not dealt at the start* — a Doctor-healed Psycho becomes one. Shoots on **odd nights**: kills a **Killer** cleanly, but **dies** if they shoot an innocent. |
 
@@ -131,7 +131,10 @@ If two or more players tie for the most votes:
   one person **brings the whole bound group back**; not reviving leaves them all
   dead. Max **2 revives** per game.
 - **🏛️ Panchayat immunity:** Killers can't kill the Panchayat Thalaivar at night as
-  long as a Cupid is alive.
+  long as a Cupid is alive — but the **day vote can always eliminate them**, Cupid
+  or not.
+- **🧙 No self-revive:** the Witch can never bring **herself** back. If she dies in
+  the night, she gets no revive turn.
 
 ---
 
