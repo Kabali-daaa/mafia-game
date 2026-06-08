@@ -915,10 +915,12 @@ function buildPrompt(room: Room, viewer: Player): ActionPrompt | null {
     let pool = alivePlayers(room).filter(
       (p) => role.night!.canTargetSelf || p.id !== viewer.id
     );
-    // The Item can't pick anyone it has already visited.
+    // The Item can't pick anyone it has already visited — until it's been with
+    // everyone still alive, at which point the cycle resets and all are open again.
     if (role.id === "item") {
       const visited = room.roleState.itemVisited[viewer.id] ?? [];
-      pool = pool.filter((p) => !visited.includes(p.id));
+      const unvisited = pool.filter((p) => !visited.includes(p.id));
+      if (unvisited.length > 0) pool = unvisited;
     }
     const targets = pool.map((p) => p.id);
     return {

@@ -268,11 +268,12 @@ export const ROLES: Record<string, RoleDef> = {
     resolve: (actorId, targetIds, ctx) => {
       const t = targetIds[0];
       if (!t) return; // skipped (or no one left to visit)
+      let visited = ctx.state.itemVisited[actorId] ?? [];
+      // Once she's been with everyone still alive, the cycle resets.
+      const others = ctx.alivePlayerIds.filter((id) => id !== actorId);
+      if (others.every((id) => visited.includes(id))) visited = [];
       ctx.itemTargets[actorId] = t;
-      ctx.state.itemVisited[actorId] = [
-        ...(ctx.state.itemVisited[actorId] ?? []),
-        t,
-      ];
+      ctx.state.itemVisited[actorId] = [...visited, t];
       ctx.privateResults[actorId] = `🎲 You spent the night with ${ctx.nameOf(t)}.`;
     },
   },

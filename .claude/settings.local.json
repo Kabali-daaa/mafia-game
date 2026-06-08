@@ -56,7 +56,8 @@
       "Bash(git commit -q -m 'README: merge Vigilante into the Psycho Killer row \\(Killer → Town\\) *)",
       "Bash(git commit -q -m 'Day voting: tiebreak state machine \\(choice → revote / God decides\\) *)",
       "Bash(git commit -q -m 'Rewrite README: full rules, win conditions, and how to play *)",
-      "Bash(git commit -q -m 'Item now CHOOSES its target each night \\(no-repeat\\); README night flow clarified *)"
+      "Bash(git commit -q -m 'Item now CHOOSES its target each night \\(no-repeat\\); README night flow clarified *)",
+      "Bash(git commit -q -m 'Item: reset the no-repeat cycle once she has visited everyone still alive *)"
     ]
   }
 }
