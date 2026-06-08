@@ -7,8 +7,15 @@ export type Team = "town" | "mafia" | "neutral";
 // (if any) sees who died and may revive someone before morning is announced.
 export type Phase = "lobby" | "night" | "witch" | "day" | "ended";
 
-// Day-vote sub-stage (tiebreak state machine).
-export type VoteStage = "vote" | "choice" | "godchoice" | "revote";
+// Day sub-stage. "discussion" = chat only (God opens the vote); "done" = the
+// day's outcome is settled (God begins the night). The middle ones are voting.
+export type VoteStage =
+  | "discussion"
+  | "vote"
+  | "choice"
+  | "godchoice"
+  | "revote"
+  | "done";
 
 export interface Player {
   id: string; // stable per-player id (stored in browser, survives reconnect)
@@ -48,6 +55,23 @@ export interface RoomView {
   chat: ChatState;
   // Day-vote sub-stage (null outside the day phase).
   voteStage: VoteStage | null;
+  // Which role-group the host is calling right now (public; null outside night).
+  nightStepLabel: string | null;
+  // Host-only night board (who acted / what they chose) + next-step label.
+  nightControl: NightControl | null;
+}
+
+export interface NightControl {
+  board: NightBoardEntry[];
+  nextLabel: string | null; // label of the next step, or null on the last step
+}
+
+export interface NightBoardEntry {
+  step: string; // role-group label, e.g. "🩺 Doctor"
+  current: boolean; // is this the step being called right now
+  name: string; // player's name
+  done: boolean; // have they acted yet
+  text: string; // what they did, e.g. "🎯 chose Ben" / "⏳ waiting…"
 }
 
 export interface ChatState {

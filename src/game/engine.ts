@@ -7,6 +7,7 @@ import type {
   ActionPrompt,
   HostStatus,
   LogEntry,
+  NightBoardEntry,
   Phase,
   Player,
   PublicPlayer,
@@ -36,6 +37,8 @@ export interface Room {
   winner: Team | null;
   // Submitted night actions this phase: playerId -> chosen target ids.
   nightActions: Record<string, string[]>;
+  // Which night role-group the host is currently calling (index into nightSteps).
+  nightStep: number;
   // Submitted day votes this phase: voterId -> targetId|null.
   votes: Record<string, string | null>;
   // Day-vote sub-stage + tiebreak bookkeeping.
@@ -55,7 +58,13 @@ export interface Room {
   chatSeq: number;
 }
 
-export type VoteStage = "vote" | "choice" | "godchoice" | "revote";
+export type VoteStage =
+  | "discussion"
+  | "vote"
+  | "choice"
+  | "godchoice"
+  | "revote"
+  | "done";
 
 // A stored chat message (server-side; the sender is hidden when sent to players).
 export interface ChatMessage {
@@ -89,6 +98,7 @@ export function createRoom(code: string, host: Player): Room {
     log: [],
     winner: null,
     nightActions: {},
+    nightStep: 0,
     votes: {},
     voteStage: "vote",
     tiedCandidates: [],
@@ -180,6 +190,7 @@ export function startGame(room: Room): void {
   room.phase = "night";
   room.day = 1;
   room.nightActions = {};
+  room.nightStep = 0;
   room.votes = {};
   room.voteStage = "vote";
   room.tiedCandidates = [];
@@ -217,6 +228,37 @@ export function pendingNightActors(room: Room): Player[] {
   return alivePlayers(room).filter((p) => actsTonight(room, p));
 }
 
+// The host steps through the night one role-group at a time, in this order.
+const NIGHT_STEPS: { label: string; emoji: string; roles: string[] }[] = [
+  { label: "Cupid", emoji: "💘", roles: ["cupid"] },
+  { label: "Killers", emoji: "🔪", roles: ["killer", "godfather"] },
+  { label: "Psycho Killer", emoji: "🪓", roles: ["psycho"] },
+  { label: "Vigilante", emoji: "🔫", roles: ["vigilante"] },
+  { label: "Police", emoji: "🚓", roles: ["police"] },
+  { label: "Doctor", emoji: "🩺", roles: ["doctor"] },
+  { label: "Item", emoji: "🎲", roles: ["item"] },
+];
+
+// The steps actually in play tonight (a role-group with ≥1 active alive member).
+export function nightSteps(room: Room) {
+  return NIGHT_STEPS.filter((s) =>
+    alivePlayers(room).some(
+      (p) => s.roles.includes(p.roleId ?? "") && actsTonight(room, p)
+    )
+  );
+}
+
+function currentStep(room: Room) {
+  return nightSteps(room)[room.nightStep];
+}
+
+// Is it this player's turn to act right now (their role is the current step)?
+function actsInCurrentStep(room: Room, player: Player): boolean {
+  if (!actsTonight(room, player)) return false;
+  const step = currentStep(room);
+  return !!step && step.roles.includes(player.roleId ?? "");
+}
+
 export function submitNightAction(
   room: Room,
   playerId: string,
@@ -224,8 +266,16 @@ export function submitNightAction(
 ): void {
   if (room.phase !== "night") return;
   const player = get(room, playerId);
-  if (!player || !player.alive || !actsTonight(room, player)) return;
+  if (!player || !player.alive || !actsInCurrentStep(room, player)) return;
   room.nightActions[playerId] = targetIds;
+}
+
+// Advance the host through the night: next role-group, or resolve on the last.
+export function advanceNight(room: Room): void {
+  if (room.phase !== "night") return;
+  const steps = nightSteps(room);
+  if (room.nightStep >= steps.length - 1) resolveNight(room);
+  else room.nightStep += 1;
 }
 
 export function allNightActionsIn(room: Room): boolean {
@@ -446,7 +496,7 @@ function finalizeNight(
   }
 
   room.phase = "day";
-  room.voteStage = "vote";
+  room.voteStage = "discussion"; // day opens in discussion; the God opens the vote
   room.votes = {};
   room.choiceVotes = {};
   room.tiedCandidates = [];
@@ -597,6 +647,8 @@ function nextNight(room: Room): void {
   room.choiceVotes = {};
   room.tiedCandidates = [];
   room.voteStage = "vote";
+  room.nightActions = {};
+  room.nightStep = 0;
   room.day += 1;
   room.phase = "night";
   room.privateMessages = {};
@@ -612,7 +664,6 @@ function eliminate(room: Room, victimId: string | null): void {
   room.votes = {};
   room.choiceVotes = {};
   room.tiedCandidates = [];
-  room.voteStage = "vote";
 
   if (victimId) {
     const victim = get(room, victimId);
@@ -644,7 +695,17 @@ function eliminate(room: Room, victimId: string | null): void {
 
   const winner = checkWinner(room);
   if (winner) endGame(room, winner);
-  else nextNight(room);
+  else room.voteStage = "done"; // day stays open; the God begins the night when ready
+}
+
+// Open the day vote (God-controlled). Discussion → voting.
+export function openVote(room: Room): void {
+  if (room.phase === "day" && room.voteStage === "discussion") room.voteStage = "vote";
+}
+
+// Begin the next night (God-controlled), after the day's outcome is in.
+export function beginNight(room: Room): void {
+  if (room.phase === "day" && room.voteStage === "done") nextNight(room);
 }
 
 // Resolve a player-vote stage ("vote" or "revote").
@@ -892,6 +953,10 @@ export function buildView(room: Room, viewerId: string): RoomView {
       roleId: isHost || gameOver ? p.roleId : null,
     }));
 
+  const steps = room.phase === "night" ? nightSteps(room) : [];
+  const cur = steps[room.nightStep];
+  const next = steps[room.nightStep + 1];
+
   return {
     code: room.code,
     phase: room.phase,
@@ -907,14 +972,58 @@ export function buildView(room: Room, viewerId: string): RoomView {
     hostStatus: isHost ? buildHostStatus(room) : null,
     chat: buildChatState(room, viewer),
     voteStage: room.phase === "day" ? room.voteStage : null,
+    // Public: which role-group the host is currently calling.
+    nightStepLabel: cur ? `${cur.emoji} ${cur.label}` : null,
+    // Host-only: the live night board + the "next" button label.
+    nightControl:
+      isHost && room.phase === "night"
+        ? { board: buildNightBoard(room), nextLabel: next ? `${next.emoji} ${next.label}` : null }
+        : null,
   };
+}
+
+// Host-only readout: every night-acting player this night, whether they've acted,
+// and what they chose. Grouped/ordered by the host's stepping order.
+function buildNightBoard(room: Room): NightBoardEntry[] {
+  const steps = nightSteps(room);
+  const board: NightBoardEntry[] = [];
+  steps.forEach((step, si) => {
+    const actors = alivePlayers(room).filter(
+      (p) => step.roles.includes(p.roleId ?? "") && actsTonight(room, p)
+    );
+    for (const p of actors) {
+      const done = p.id in room.nightActions;
+      const targets = room.nightActions[p.id] ?? [];
+      board.push({
+        step: `${step.emoji} ${step.label}`,
+        current: si === room.nightStep,
+        name: p.name,
+        done,
+        text: describeNightAction(room, p.roleId ?? "", targets, done),
+      });
+    }
+  });
+  return board;
+}
+
+function describeNightAction(room: Room, roleId: string, targets: string[], done: boolean): string {
+  if (!done) return "⏳ waiting…";
+  const names = targets.map((id) => nameOf(room, id));
+  if (names.length === 0) return "— held back";
+  if (roleId === "cupid") return `💘 linked ${names.join(" & ")}`;
+  if (roleId === "doctor") return `🩺 healed ${names[0]}`;
+  if (roleId === "police") return `🚓 investigated ${names[0]}`;
+  if (roleId === "item") return `🎲 visited ${names[0]}`;
+  if (roleId === "vigilante") return `🔫 shot ${names[0]}`;
+  return `🎯 chose ${names[0]}`; // killer / godfather / psycho
 }
 
 function buildPrompt(room: Room, viewer: Player): ActionPrompt | null {
   if (viewer.isHost || !viewer.alive) return null;
 
   if (room.phase === "night") {
-    if (!actsTonight(room, viewer)) return null;
+    // Host-stepped night: a player only acts when their role-group is called.
+    if (!actsInCurrentStep(room, viewer)) return null;
     const role = getRole(viewer.roleId)!;
     let pool = alivePlayers(room).filter(
       (p) => role.night!.canTargetSelf || p.id !== viewer.id
@@ -955,7 +1064,14 @@ function buildPrompt(room: Room, viewer: Player): ActionPrompt | null {
   }
 
   if (room.phase === "day") {
-    if (room.voteStage === "godchoice") return null; // waiting for the God
+    // No vote prompt before the God opens voting, after it's settled, or during
+    // the God's tie decision.
+    if (
+      room.voteStage === "discussion" ||
+      room.voteStage === "done" ||
+      room.voteStage === "godchoice"
+    )
+      return null;
 
     if (room.voteStage === "choice") {
       const names = room.tiedCandidates.map((id) => nameOf(room, id)).join(" & ");

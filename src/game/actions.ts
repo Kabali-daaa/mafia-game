@@ -4,15 +4,16 @@
 
 import { isAssignable } from "./roles";
 import {
-  allNightActionsIn,
+  advanceNight,
   allVotesIn,
+  beginNight,
   canStart,
+  openVote,
   postChat,
   resetToLobby,
   resolveChoice,
   resolveDay,
   resolveGodChoice,
-  resolveNight,
   resolveWitch,
   type Room,
   startGame,
@@ -65,11 +66,10 @@ export function applyJoin(room: Room, playerId: string, name: string): string {
   return playerId;
 }
 
-// Auto-advance once every required actor has acted.
+// Auto-advance the DAY once every voter has acted. (The night is host-stepped,
+// so it never auto-advances — the God pushes through each role.)
 function maybeAdvance(room: Room): void {
-  if (room.phase === "night" && allNightActionsIn(room)) {
-    resolveNight(room);
-  } else if (room.phase === "day" && allVotesIn(room)) {
+  if (room.phase === "day" && allVotesIn(room)) {
     if (room.voteStage === "choice") resolveChoice(room);
     else resolveDay(room); // "vote" / "revote"
   }
@@ -149,10 +149,12 @@ export function applyAction(
     }
     case "advance": {
       if (!isHost) return;
-      if (room.phase === "night") resolveNight(room);
+      if (room.phase === "night") advanceNight(room); // next role-group, or resolve on the last
       else if (room.phase === "witch") resolveWitch(room, null, null);
       else if (room.phase === "day") {
-        if (room.voteStage === "choice") resolveChoice(room);
+        if (room.voteStage === "discussion") openVote(room); // open the vote
+        else if (room.voteStage === "done") beginNight(room); // start the night
+        else if (room.voteStage === "choice") resolveChoice(room);
         else if (room.voteStage === "godchoice") resolveGodChoice(room, "skip");
         else resolveDay(room); // "vote" / "revote"
       }
