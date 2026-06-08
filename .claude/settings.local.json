@@ -45,7 +45,13 @@
       "Bash(git push *)",
       "Bash(git check-ignore *)",
       "Bash(git commit -q -m 'Fix Firebase Admin init \\(singleton + guard settings\\) for serverless *)",
-      "Bash(vercel --version)"
+      "Bash(vercel --version)",
+      "Bash(npx --yes vercel@latest --version)",
+      "Bash(npx --yes vercel@latest whoami)",
+      "Bash(npx --yes vercel@latest link --yes --project mafia-game)",
+      "Bash(npx --yes vercel@latest --prod --yes)",
+      "Bash(git commit -q -m 'Ignore .vercel project link folder *)",
+      "Bash(grep -iE \"\\\\.env\\\\.local$|service.*\\\\.json|adminsdk\")"
     ]
   }
 }

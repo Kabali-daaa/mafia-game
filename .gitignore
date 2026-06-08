@@ -6,3 +6,4 @@ node_modules
 
 # Generated screenshots (dev-only visual checks)
 screens/
+.vercel
