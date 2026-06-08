@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  /* Safety net: never allow sideways scrolling on any device. */
+  overflow-x: hidden;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #3a3354 0%, transparent 60%),
+    linear-gradient(165deg, #2a2640 0%, #1b1925 55%, #131017 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  color: #ECEAF3;
+}
+
+/* Slim, soft scrollbars to match the dark UI. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}

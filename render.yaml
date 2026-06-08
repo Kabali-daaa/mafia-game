@@ -1,0 +1,14 @@
+# Render Blueprint — lets Render auto-configure the service from this repo.
+# In Render: New → Blueprint → pick your GitHub repo → Apply.
+services:
+  - type: web
+    name: mafia-game
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: "22.11.0"
+      - key: NODE_ENV
+        value: production
