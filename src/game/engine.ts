@@ -22,7 +22,6 @@ import {
   ROLES,
   type NightContext,
   type RoleState,
-  WITCH_MAX_REVIVES,
 } from "./roles";
 
 // Full server-side room state (never sent verbatim to clients).
@@ -220,6 +219,9 @@ function actsTonight(room: Room, player: Player): boolean {
   if (r.night.firstNightOnly && room.day !== 1) return false;
   // "Alternate nights" = active only on odd-numbered nights (1, 3, 5, …).
   if (r.night.everyOtherNight && room.day % 2 === 0) return false;
+  // Limited-use roles (the Witch, 2 saves) stop acting once spent.
+  if (r.night.maxUses != null && (room.witchRevives[player.id] ?? 0) >= r.night.maxUses)
+    return false;
   return true;
 }
 
@@ -237,6 +239,7 @@ const NIGHT_STEPS: { label: string; emoji: string; roles: string[] }[] = [
   { label: "Police", emoji: "🚓", roles: ["police"] },
   { label: "Doctor", emoji: "🩺", roles: ["doctor"] },
   { label: "Item", emoji: "🎲", roles: ["item"] },
+  { label: "Witch", emoji: "🧙", roles: ["witch"] }, // last — she sees the attacks
 ];
 
 // The steps actually in play tonight (a role-group with ≥1 active alive member).
@@ -409,22 +412,25 @@ function computeDeaths(
   return groups.map((g) => ({ primary: g.primary, members: [...g.members] }));
 }
 
-// A witch who can act tonight: alive, has revives left, and is NOT among the
-// players dying this night (she can never revive herself).
-function aliveWitchWithRevives(room: Room, dying: Set<string> = new Set()): Player | null {
-  return (
-    aliveWithRole(room, "witch").find(
-      (w) => (room.witchRevives[w.id] ?? 0) < WITCH_MAX_REVIVES && !dying.has(w.id)
-    ) ?? null
-  );
+// Players the attackers (Killers / Godfather / Psycho / Vigilante) targeted this
+// night — what the Witch is shown when she's called.
+function attackedTonight(room: Room): string[] {
+  const attackers = ["killer", "godfather", "psycho", "vigilante"];
+  const set = new Set<string>();
+  for (const p of alivePlayers(room)) {
+    if (attackers.includes(p.roleId ?? ""))
+      for (const t of room.nightActions[p.id] ?? []) set.add(t);
+  }
+  return [...set];
 }
 
-// Resolve the night. Either pauses for the Witch, or finalizes into morning.
+// Resolve the night (after the God has stepped through every role, incl. the Witch).
 export function resolveNight(room: Room): void {
   if (room.phase !== "night") return;
   const ctx = buildNightContext(room);
 
-  // Run each chosen night action in priority order.
+  // Run each chosen night action in priority order (the Witch's save adds to
+  // protectedIds here, just like the Doctor — she never learns of the heal).
   for (const roleDef of nightRolesInOrder()) {
     if (roleDef.night?.firstNightOnly && room.day !== 1) continue;
     if (roleDef.night?.everyOtherNight && room.day % 2 === 0) continue;
@@ -436,14 +442,20 @@ export function resolveNight(room: Room): void {
   // The Police squad's single shared investigation.
   resolvePolice(room, ctx);
 
+  // A Witch who chose to save someone spends one of her two uses.
+  for (const w of aliveWithRole(room, "witch")) {
+    if ((room.nightActions[w.id] ?? []).length > 0)
+      room.witchRevives[w.id] = (room.witchRevives[w.id] ?? 0) + 1;
+  }
+
   // Surface private results (Police findings, Cupid's love notes).
   room.privateMessages = { ...ctx.privateResults };
 
-  // Compute the night's death groups (the Item's chosen visit is in ctx.itemTargets).
+  // The Item's chosen visit + the night's death groups.
   const groups = computeDeaths(room, ctx, ctx.itemTargets);
-  const anyDeaths = groups.some((g) => g.members.length > 0);
 
-  // A Psycho Killer healed by the Doctor secretly becomes a Vigilante.
+  // A Psycho Killer healed by the Doctor (or saved by the Witch) secretly
+  // becomes a Vigilante.
   for (const psycho of aliveWithRole(room, "psycho")) {
     if (ctx.protectedIds.has(psycho.id)) {
       psycho.roleId = "vigilante";
@@ -452,40 +464,15 @@ export function resolveNight(room: Room): void {
     }
   }
 
-  // If a Witch can still act and someone died, pause for her decision. A witch
-  // who is dying tonight can't act (so she can never revive herself). She is
-  // shown only each group's primary; reviving it brings the whole group back.
-  const dying = new Set(groups.flatMap((g) => g.members));
-  const witch = aliveWitchWithRevives(room, dying);
-  if (anyDeaths && witch) {
-    room.deathGroups = groups;
-    room.phase = "witch";
-    const names = groups.map((g) => nameOf(room, g.primary)).join(", ");
-    const left = WITCH_MAX_REVIVES - (room.witchRevives[witch.id] ?? 0);
-    room.privateMessages[witch.id] =
-      `🧙 Fell tonight: ${names}. You may revive one — anyone bound to them returns too (${left} left).`;
-    return;
-  }
-
-  finalizeNight(room, groups, null);
+  finalizeNight(room, groups);
 }
 
 // Apply the night's death groups (sparing the one the Witch revived, whole) and
-// open the day. Reviving a group's primary spares every member bound to it.
-function finalizeNight(
-  room: Room,
-  groups: DeathGroup[],
-  revive: { witchId: string; primaryId: string } | null
-): void {
-  const revivedPrimary = revive?.primaryId ?? null;
+// open the day. (Anyone the Doctor or Witch protected was already removed from
+// the death set during resolution, so they simply aren't here.)
+function finalizeNight(room: Room, groups: DeathGroup[]): void {
   const dead: string[] = [];
-  const revivedNames: string[] = [];
   for (const g of groups) {
-    if (g.primary === revivedPrimary) {
-      // The whole group is spared — collect names for the morning narration.
-      for (const id of g.members) revivedNames.push(nameOf(room, id));
-      continue;
-    }
     for (const id of g.members) {
       const p = get(room, id);
       if (p && p.alive) {
@@ -502,15 +489,6 @@ function finalizeNight(
   room.tiedCandidates = [];
   room.deathGroups = null;
   room.nightActions = {};
-
-  if (revive && revivedNames.length) {
-    room.witchRevives[revive.witchId] = (room.witchRevives[revive.witchId] ?? 0) + 1;
-    room.log.push({
-      phase: "day",
-      day: room.day,
-      text: `🧙 The Witch's magic pulled ${revivedNames.join(" and ")} back from death!`,
-    });
-  }
 
   if (dead.length === 0) {
     room.log.push({
@@ -530,31 +508,6 @@ function finalizeNight(
 
   const winner = checkWinner(room);
   if (winner) endGame(room, winner);
-}
-
-// ---- witch sub-phase ----
-
-export function resolveWitch(
-  room: Room,
-  witchId: string | null,
-  targetId: string | null
-): void {
-  if (room.phase !== "witch") return;
-  const groups = room.deathGroups ?? [];
-  const witch = witchId ? get(room, witchId) : null;
-  // The witch revives by choosing a group's primary (which spares the whole group).
-  const canRevive =
-    witch &&
-    witch.roleId === "witch" &&
-    witch.alive &&
-    (room.witchRevives[witch.id] ?? 0) < WITCH_MAX_REVIVES &&
-    targetId &&
-    groups.some((g) => g.primary === targetId);
-  finalizeNight(
-    room,
-    groups,
-    canRevive ? { witchId: witch!.id, primaryId: targetId! } : null
-  );
 }
 
 // ---- day phase (voting + tiebreak) ----
@@ -1015,6 +968,7 @@ function describeNightAction(room: Room, roleId: string, targets: string[], done
   if (roleId === "police") return `🚓 investigated ${names[0]}`;
   if (roleId === "item") return `🎲 visited ${names[0]}`;
   if (roleId === "vigilante") return `🔫 shot ${names[0]}`;
+  if (roleId === "witch") return `🧙 saved ${names[0]}`;
   return `🎯 chose ${names[0]}`; // killer / godfather / psycho
 }
 
@@ -1035,31 +989,23 @@ function buildPrompt(room: Room, viewer: Player): ActionPrompt | null {
       const unvisited = pool.filter((p) => !visited.includes(p.id));
       if (unvisited.length > 0) pool = unvisited;
     }
+    // The Witch is shown only who was attacked tonight (she saves blind to the heal).
+    if (role.id === "witch") {
+      const attacked = attackedTonight(room);
+      pool = pool.filter((p) => attacked.includes(p.id));
+    }
     const targets = pool.map((p) => p.id);
     return {
       kind: "night",
-      text: role.night!.prompt,
+      text:
+        role.id === "witch" && targets.length === 0
+          ? "No one was attacked tonight — nothing to save."
+          : role.night!.prompt,
       roleId: role.id,
       targets,
       selectCount: role.night!.selectCount ?? 1,
       canSkip: true,
       submitted: viewer.id in room.nightActions,
-    };
-  }
-
-  if (room.phase === "witch") {
-    const dying = new Set((room.deathGroups ?? []).flatMap((g) => g.members));
-    const witch = aliveWitchWithRevives(room, dying);
-    if (!witch || witch.id !== viewer.id) return null;
-    return {
-      kind: "witch",
-      text: "Revive one of the fallen (anyone bound to them returns too), or let fate stand?",
-      roleId: "witch",
-      // Only each group's primary is offered — bound deaths come back with it.
-      targets: (room.deathGroups ?? []).map((g) => g.primary),
-      selectCount: 1,
-      canSkip: true,
-      submitted: false,
     };
   }
 
@@ -1118,11 +1064,6 @@ function buildHostStatus(room: Room): HostStatus {
     const pending = pendingNightActors(room);
     const acted = pending.filter((p) => p.id in room.nightActions).length;
     return { acted, pending: pending.length, voteCounts: {} };
-  }
-  if (room.phase === "witch") {
-    const dying = new Set((room.deathGroups ?? []).flatMap((g) => g.members));
-    const witch = aliveWitchWithRevives(room, dying);
-    return { acted: 0, pending: witch ? 1 : 0, voteCounts: {} };
   }
   if (room.phase === "day") {
     const voters = aliveVoters(room);

@@ -72,6 +72,7 @@ export interface RoleDef {
     selectCount?: number; // how many targets to choose (default 1)
     firstNightOnly?: boolean; // Cupid only acts on night 1
     everyOtherNight?: boolean; // only acts on odd nights (1, 3, 5, …)
+    maxUses?: number; // limited-use power (the Witch: 2 saves per game)
   };
   // Apply this player's chosen targets into the shared night context.
   resolve?: (actorId: string, targetIds: string[], ctx: NightContext) => void;
@@ -282,11 +283,23 @@ export const ROLES: Record<string, RoleDef> = {
     id: "witch",
     name: "Witch",
     team: "town",
+    // NOTE: called LAST at night (after the attackers). She's shown who was
+    // attacked and may SAVE one — WITHOUT knowing if the Doctor already protected
+    // them (engine.ts builds her target list + counts her uses). Max 2 saves.
     emoji: "🧙",
-    // NOTE: the Witch acts in the reactive "witch" sub-phase (see engine.ts),
-    // after the night's deaths are known. Up to WITCH_MAX_REVIVES per game.
     description:
-      "After each night, the Witch learns who died and may bring one of them back to life — at most twice per game.",
+      "Called after the Killers each night. You're shown who was attacked and may SAVE one of them — but you won't know if the Doctor already protected them. Only twice per game.",
+    night: {
+      order: 12, // a protector (applies before kills, like the Doctor)
+      prompt: "Someone was attacked tonight. Save one of them? (You won't know if the Doctor also protected them.)",
+      canTargetSelf: true,
+      canTargetDead: false,
+      maxUses: 2,
+    },
+    resolve: (_actorId, targetIds, ctx) => {
+      const t = targetIds[0];
+      if (t) ctx.protectedIds.add(t); // shield them from the night's attack
+    },
   },
 
   // ---- Neutral ----

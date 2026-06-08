@@ -39,26 +39,26 @@ Town by night. The Jester plays for itself and wins only by getting lynched.
      the Killers can't already be at parity.
 
 ### The round loop
-The game alternates **Night → (Witch) → Day**, repeating until a side wins.
+The game alternates **Night → Day**, repeating until a side wins. The God paces
+everything — calling each night role in turn, then opening the vote and starting
+the next night when ready.
 
 #### 🌙 Night
-There's **no "wake up one at a time"** — **everyone with a night power acts at the
-same time**, privately on their own phone. In a single night that can include:
+Like an in-person narrator, the **God calls each role-group one at a time** and
+taps **Next** to move on. Only the called role can act; everyone else waits. The
+God sees a live board of **who acted and what they chose**. The order is:
 
-- 🔪 **Killers / Godfather** choose a victim
-- 🪓 **Psycho Killer** (odd nights) / 🔫 **Vigilante** (odd nights) take their shot
-- 🚓 **Police** investigate a suspect
-- 🩺 **Doctor** heals someone
-- 🎲 **Item** picks who to spend the night with
-- 💘 **Cupid** links the Lovers (night 1 only)
+1. 💘 **Cupid** — links the Lovers (night 1 only)
+2. 🔪 **Killers / Godfather** — choose a victim
+3. 🪓 **Psycho Killer** (odd nights)
+4. 🔫 **Vigilante** (odd nights, after transforming)
+5. 🚓 **Police** — investigate a suspect
+6. 🩺 **Doctor** — heal someone
+7. 🎲 **Item** — pick who to spend the night with
+8. 🧙 **Witch** — shown who was **attacked**, may **save** one (blind to the Doctor)
 
-Players with no night power simply wait. Once **everyone who can act has acted** —
-or the God taps **Resolve night** — all the actions are worked out **together**
-(heals cancel kills, the Item's curse and Lovers' fate apply, etc.).
-
-#### 🧙 Witch interlude (only if a Witch is alive and someone died)
-Before morning is announced, the game pauses just for the **Witch**: she's shown
-who died and may **revive one** of them (see her role below). Everyone else waits.
+On the last role the God taps **Resolve night** and everything is worked out
+together (saves cancel kills, the Item's curse and Lovers' fate apply, etc.).
 
 #### ☀️ Day
 Morning is announced (who died overnight). Players **discuss in the Town chat**
@@ -105,7 +105,7 @@ If two or more players tie for the most votes:
 | 💘 **Cupid** | On **night 1 only**, pick **two players** to become **Lovers**. |
 | 🏛️ **Panchayat Thalaivar** | The village head — **Killers cannot kill them at night while any Cupid is alive**. They can **always be voted out by day**, even while a Cupid lives. |
 | 🎲 **Item** | Each night, **choose someone to spend the night with** — you **can't pick the same person twice**. The Item **dies** if that player is a **Killer**, or if that player **dies that night**. |
-| 🧙 **Witch** | After each night, she learns **who died** and may **bring one of them back** — at most **twice per game**. She **can't revive herself** (if she dies that night, she has no turn). |
+| 🧙 **Witch** | Called by the God after the Killers. She's shown **who was attacked** that night and may **save one of them** — but she **won't know if the Doctor already protected them** (a redundant save is wasted). Only **twice per game**. |
 | 🧑‍🌾 **Villager** | No special power. Use discussion and votes to find the Killers. |
 | 🔫 **Vigilante** | *Not dealt at the start* — a Doctor-healed Psycho becomes one. Shoots on **odd nights**: kills a **Killer** cleanly, but **dies** if they shoot an innocent. |
 
@@ -126,15 +126,13 @@ If two or more players tie for the most votes:
 - **🪓→🔫 Psycho → Vigilante:** if the Doctor heals the Psycho Killer (any night),
   the Psycho **secretly becomes a Vigilante** (now Town-aligned). Only that player
   is notified; a fresh dramatic reveal shows their new role.
-- **🧙 Witch revives:** linked deaths are shown to the Witch as **one** person
-  (e.g. a Lover pair, or a villager + the Item that died with them). Reviving that
-  one person **brings the whole bound group back**; not reviving leaves them all
-  dead. Max **2 revives** per game.
+- **🧙 Witch saves blind:** when the God calls her, she sees who the Killers
+  **attacked** and may shield one — but she's **not told whether the Doctor already
+  protected them**, so a redundant save is wasted. Max **2 saves** per game, and
+  she can save **herself** if she's the one attacked.
 - **🏛️ Panchayat immunity:** Killers can't kill the Panchayat Thalaivar at night as
   long as a Cupid is alive — but the **day vote can always eliminate them**, Cupid
   or not.
-- **🧙 No self-revive:** the Witch can never bring **herself** back. If she dies in
-  the night, she gets no revive turn.
 
 ---
 
