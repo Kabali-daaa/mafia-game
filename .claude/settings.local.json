@@ -57,7 +57,9 @@
       "Bash(git commit -q -m 'Day voting: tiebreak state machine \\(choice → revote / God decides\\) *)",
       "Bash(git commit -q -m 'Rewrite README: full rules, win conditions, and how to play *)",
       "Bash(git commit -q -m 'Item now CHOOSES its target each night \\(no-repeat\\); README night flow clarified *)",
-      "Bash(git commit -q -m 'Item: reset the no-repeat cycle once she has visited everyone still alive *)"
+      "Bash(git commit -q -m 'Item: reset the no-repeat cycle once she has visited everyone still alive *)",
+      "Bash(git commit -q -m 'Add full end-to-end simulation suite \\(roles, win conditions, chat, reconnect\\) *)",
+      "Bash(git commit *)"
     ]
   }
 }

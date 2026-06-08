@@ -359,10 +359,12 @@ function computeDeaths(
   return groups.map((g) => ({ primary: g.primary, members: [...g.members] }));
 }
 
-function aliveWitchWithRevives(room: Room): Player | null {
+// A witch who can act tonight: alive, has revives left, and is NOT among the
+// players dying this night (she can never revive herself).
+function aliveWitchWithRevives(room: Room, dying: Set<string> = new Set()): Player | null {
   return (
     aliveWithRole(room, "witch").find(
-      (w) => (room.witchRevives[w.id] ?? 0) < WITCH_MAX_REVIVES
+      (w) => (room.witchRevives[w.id] ?? 0) < WITCH_MAX_REVIVES && !dying.has(w.id)
     ) ?? null
   );
 }
@@ -400,9 +402,11 @@ export function resolveNight(room: Room): void {
     }
   }
 
-  // If a Witch can still act and someone died, pause for her decision. She is
+  // If a Witch can still act and someone died, pause for her decision. A witch
+  // who is dying tonight can't act (so she can never revive herself). She is
   // shown only each group's primary; reviving it brings the whole group back.
-  const witch = aliveWitchWithRevives(room);
+  const dying = new Set(groups.flatMap((g) => g.members));
+  const witch = aliveWitchWithRevives(room, dying);
   if (anyDeaths && witch) {
     room.deathGroups = groups;
     room.phase = "witch";
@@ -935,7 +939,8 @@ function buildPrompt(room: Room, viewer: Player): ActionPrompt | null {
   }
 
   if (room.phase === "witch") {
-    const witch = aliveWitchWithRevives(room);
+    const dying = new Set((room.deathGroups ?? []).flatMap((g) => g.members));
+    const witch = aliveWitchWithRevives(room, dying);
     if (!witch || witch.id !== viewer.id) return null;
     return {
       kind: "witch",
@@ -999,7 +1004,8 @@ function buildHostStatus(room: Room): HostStatus {
     return { acted, pending: pending.length, voteCounts: {} };
   }
   if (room.phase === "witch") {
-    const witch = aliveWitchWithRevives(room);
+    const dying = new Set((room.deathGroups ?? []).flatMap((g) => g.members));
+    const witch = aliveWitchWithRevives(room, dying);
     return { acted: 0, pending: witch ? 1 : 0, voteCounts: {} };
   }
   if (room.phase === "day") {
