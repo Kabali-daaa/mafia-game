@@ -42,10 +42,19 @@ Town by night. The Jester plays for itself and wins only by getting lynched.
 The game alternates **Night → (Witch) → Day**, repeating until a side wins.
 
 #### 🌙 Night
-Everyone "sleeps." Players with night powers act **secretly** on their own phone
-(the Killers pick a victim, the Police investigate, the Doctor heals, etc.). Once
-everyone with a power has acted — or the God taps **Resolve night** — the night is
-worked out.
+There's **no "wake up one at a time"** — **everyone with a night power acts at the
+same time**, privately on their own phone. In a single night that can include:
+
+- 🔪 **Killers / Godfather** choose a victim
+- 🪓 **Psycho Killer** (odd nights) / 🔫 **Vigilante** (odd nights) take their shot
+- 🚓 **Police** investigate a suspect
+- 🩺 **Doctor** heals someone
+- 🎲 **Item** picks who to spend the night with
+- 💘 **Cupid** links the Lovers (night 1 only)
+
+Players with no night power simply wait. Once **everyone who can act has acted** —
+or the God taps **Resolve night** — all the actions are worked out **together**
+(heals cancel kills, the Item's curse and Lovers' fate apply, etc.).
 
 #### 🧙 Witch interlude (only if a Witch is alive and someone died)
 Before morning is announced, the game pauses just for the **Witch**: she's shown
@@ -95,7 +104,7 @@ If two or more players tie for the most votes:
 | 🩺 **Doctor** | Each night, **heal one player** — if they're attacked that night, they survive. (Healing the Psycho Killer triggers its transformation.) |
 | 💘 **Cupid** | On **night 1 only**, pick **two players** to become **Lovers**. |
 | 🏛️ **Panchayat Thalaivar** | The village head — **Killers cannot kill them at night while any Cupid is alive** (still lynchable by day). |
-| 🎲 **Item** | Has no choice: each night the Item is **drawn to a random new player** (never the same twice). The Item **dies** if that player is a **Killer**, or if that player **dies that night**. |
+| 🎲 **Item** | Each night, **choose someone to spend the night with** — you **can't pick the same person twice**. The Item **dies** if that player is a **Killer**, or if that player **dies that night**. |
 | 🧙 **Witch** | After each night, she learns **who died** and may **bring one of them back** — at most **twice per game**. |
 | 🧑‍🌾 **Villager** | No special power. Use discussion and votes to find the Killers. |
 | 🔫 **Vigilante** | *Not dealt at the start* — a Doctor-healed Psycho becomes one. Shoots on **odd nights**: kills a **Killer** cleanly, but **dies** if they shoot an innocent. |
@@ -111,9 +120,9 @@ If two or more players tie for the most votes:
 
 - **💞 Lovers** (created by Cupid): if **one Lover dies** — by a night kill **or** a
   day lynch — the **other dies too**. They're privately told who they love.
-- **🎲 The Item's curse:** the Item is auto-assigned a random new target each night.
-  Drawn to a Killer → the Item dies. Drawn to someone who dies that night → the
-  Item dies with them.
+- **🎲 The Item's curse:** each night the Item **chooses** someone to spend the
+  night with (never the same person twice). Chose a Killer → the Item dies. Chose
+  someone who dies that night → the Item dies with them.
 - **🪓→🔫 Psycho → Vigilante:** if the Doctor heals the Psycho Killer (any night),
   the Psycho **secretly becomes a Vigilante** (now Town-aligned). Only that player
   is notified; a fresh dramatic reveal shows their new role.

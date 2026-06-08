@@ -246,6 +246,7 @@ function buildNightContext(room: Room): NightContext {
     markedForDeath: new Set(),
     privateResults: {},
     vigilanteShots: {},
+    itemTargets: {},
   };
 }
 
@@ -274,24 +275,6 @@ function resolvePolice(room: Room, ctx: NightContext): void {
   const note =
     cops.length > 1 ? " (your squad's joint check this night)" : "";
   for (const cop of cops) ctx.privateResults[cop.id] = verdict + note;
-}
-
-// The Item is drawn to a random, never-before-visited player each night.
-// Returns itemPlayerId -> targetId for everyone holding the Item.
-function runItem(room: Room): Record<string, string> {
-  const targets: Record<string, string> = {};
-  for (const item of aliveWithRole(room, "item")) {
-    const visited = room.roleState.itemVisited[item.id] ?? [];
-    const candidates = alivePlayers(room).filter(
-      (p) => p.id !== item.id && !visited.includes(p.id)
-    );
-    if (candidates.length === 0) continue;
-    const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    targets[item.id] = pick.id;
-    room.roleState.itemVisited[item.id] = [...visited, pick.id];
-    room.privateMessages[item.id] = `🎲 Tonight you were drawn to ${pick.name}.`;
-  }
-  return targets;
 }
 
 // A death and everyone bound to it (Lovers / a cursed Item). The Witch sees only
@@ -404,9 +387,8 @@ export function resolveNight(room: Room): void {
   // Surface private results (Police findings, Cupid's love notes).
   room.privateMessages = { ...ctx.privateResults };
 
-  // The Item acts automatically, then we compute the night's death groups.
-  const itemTargets = runItem(room);
-  const groups = computeDeaths(room, ctx, itemTargets);
+  // Compute the night's death groups (the Item's chosen visit is in ctx.itemTargets).
+  const groups = computeDeaths(room, ctx, ctx.itemTargets);
   const anyDeaths = groups.some((g) => g.members.length > 0);
 
   // A Psycho Killer healed by the Doctor secretly becomes a Vigilante.
@@ -930,9 +912,15 @@ function buildPrompt(room: Room, viewer: Player): ActionPrompt | null {
   if (room.phase === "night") {
     if (!actsTonight(room, viewer)) return null;
     const role = getRole(viewer.roleId)!;
-    const targets = alivePlayers(room)
-      .filter((p) => role.night!.canTargetSelf || p.id !== viewer.id)
-      .map((p) => p.id);
+    let pool = alivePlayers(room).filter(
+      (p) => role.night!.canTargetSelf || p.id !== viewer.id
+    );
+    // The Item can't pick anyone it has already visited.
+    if (role.id === "item") {
+      const visited = room.roleState.itemVisited[viewer.id] ?? [];
+      pool = pool.filter((p) => !visited.includes(p.id));
+    }
+    const targets = pool.map((p) => p.id);
     return {
       kind: "night",
       text: role.night!.prompt,

@@ -43,6 +43,9 @@ export interface NightContext {
   // Vigilante shots: shooterId -> targetId. Engine applies the "kill a killer,
   // or die for shooting an innocent" rule (see engine.ts).
   vigilanteShots: Record<string, string>;
+  // Item visits: itemPlayerId -> the player they chose this night. Engine applies
+  // the Item's curse (dies if it's a Killer, or if that player dies tonight).
+  itemTargets: Record<string, string>;
 }
 
 export interface RoleDef {
@@ -251,10 +254,27 @@ export const ROLES: Record<string, RoleDef> = {
     name: "Item",
     team: "town",
     emoji: "🎲",
-    // NOTE: the Item acts automatically — engine.ts picks a random, never-repeated
-    // target each night and applies its curse. No player choice/prompt.
+    // NOTE: the curse (dies if the chosen player is a Killer, or dies that night)
+    // is applied in engine.ts. Already-visited players are filtered out of the
+    // prompt, and the visit is recorded here.
     description:
-      "Each night the Item is drawn to a random new person. If that person is a Killer — or dies that night — the Item dies too.",
+      "Each night, choose one person to spend the night with — you can't pick the same person twice. If they're a Killer, or they die that night, you die too.",
+    night: {
+      order: 30,
+      prompt: "Choose someone to spend the night with (you can't repeat a past choice).",
+      canTargetSelf: false,
+      canTargetDead: false,
+    },
+    resolve: (actorId, targetIds, ctx) => {
+      const t = targetIds[0];
+      if (!t) return; // skipped (or no one left to visit)
+      ctx.itemTargets[actorId] = t;
+      ctx.state.itemVisited[actorId] = [
+        ...(ctx.state.itemVisited[actorId] ?? []),
+        t,
+      ];
+      ctx.privateResults[actorId] = `🎲 You spent the night with ${ctx.nameOf(t)}.`;
+    },
   },
 
   witch: {
