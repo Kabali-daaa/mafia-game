@@ -36,10 +36,9 @@ player id).
 |------|------|-------|
 | 🔪 Killer | Killers | Each night, choose one player to eliminate |
 | 🎩 Godfather | Killers | Eliminates like a Killer, but the Police see them as innocent |
-| 🪓 Psycho Killer | Killers | Kills on **odd nights** only; if the Doctor heals them, secretly becomes a Vigilante |
+| 🪓→🔫 Psycho Killer / Vigilante | Killer → Town | Kills on **odd nights** as the Psycho Killer; if the Doctor ever heals them, they secretly become a **Vigilante** (Town) who shoots on odd nights — killing a Killer cleanly, but dying if they shoot an innocent |
 | 🚓 Police | Town | Each night, privately learn if a player is a Killer |
 | 🩺 Doctor | Town | Each night, heal one player; an attack on them fails |
-| 🔫 Vigilante | Town | Shoots on **odd nights**: kills a Killer cleanly, but dies if they shoot an innocent |
 | 💘 Cupid | Town | Night 1 only: pick 2 players to become Lovers (linked fate) |
 | 🏛️ Panchayat Thalaivar | Town | Killers can't kill them at night while a Cupid is alive |
 | 🎲 Item | Town | Drawn to a random new player each night; dies if it's a Killer, or if they die |
