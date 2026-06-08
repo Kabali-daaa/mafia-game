@@ -71,8 +71,27 @@ async function mutate(code: string, fn: (room: Room) => void): Promise<void> {
   });
 }
 
-export function joinRoomDoc(code: string, name: string, playerId: string) {
-  return mutate(code.toUpperCase(), (room) => applyJoin(room, playerId, name));
+// Returns the resolved player id (may differ from `playerId` if the seat was
+// resumed by name).
+export async function joinRoomDoc(
+  code: string,
+  name: string,
+  playerId: string
+): Promise<string> {
+  const c = code.toUpperCase();
+  const db = adminDb();
+  let resolved = playerId;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(roomRef(c));
+    if (!snap.exists) throw new GameError("Room not found.");
+    const room = snap.data() as Room;
+    resolved = applyJoin(room, playerId, name);
+    tx.set(roomRef(c), room as any);
+    for (const p of room.players) {
+      tx.set(viewRef(c, p.id), buildView(room, p.id) as any);
+    }
+  });
+  return resolved;
 }
 
 export function actionRoomDoc(

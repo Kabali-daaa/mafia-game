@@ -16,6 +16,10 @@ export function getPlayerId(): string {
   return id;
 }
 
+export function setPlayerId(id: string) {
+  if (typeof window !== "undefined" && id) localStorage.setItem("mafia:playerId", id);
+}
+
 export function rememberName(name: string) {
   if (typeof window !== "undefined") localStorage.setItem("mafia:name", name);
 }
@@ -38,8 +42,14 @@ async function post(path: string, body: unknown): Promise<any> {
 export function createGame(name: string): Promise<{ code: string }> {
   return post("/api/create", { name, playerId: getPlayerId() });
 }
-export function joinGame(code: string, name: string): Promise<{ code: string }> {
-  return post("/api/join", { code, name, playerId: getPlayerId() });
+export async function joinGame(
+  code: string,
+  name: string
+): Promise<{ code: string; playerId: string }> {
+  const res = await post("/api/join", { code, name, playerId: getPlayerId() });
+  // Adopt the resolved id (in case our seat was resumed by name).
+  if (res.playerId) setPlayerId(res.playerId);
+  return res;
 }
 export function sendAction(
   code: string,

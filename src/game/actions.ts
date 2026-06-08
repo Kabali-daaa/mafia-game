@@ -21,21 +21,34 @@ import type { Player } from "@/lib/types";
 
 export class GameError extends Error {}
 
-// Add a player to a room, or reconnect an existing one.
-export function applyJoin(room: Room, playerId: string, name: string): void {
+// Add a player, reconnect them by id (refresh), or resume their seat by name
+// (rejoin from a new device/session). Returns the resolved player id so the
+// client can adopt it.
+export function applyJoin(room: Room, playerId: string, name: string): string {
   const trimmed = (name || "").trim();
   if (!trimmed) throw new GameError("Please enter a name.");
 
-  const existing = room.players.find((p) => p.id === playerId);
-  if (existing) {
-    existing.connected = true;
-    existing.name = trimmed;
-    return;
+  // Same browser / refresh: reconnect by id.
+  const byId = room.players.find((p) => p.id === playerId);
+  if (byId) {
+    byId.connected = true;
+    byId.name = trimmed;
+    return byId.id;
   }
+
+  // Returning player on a new device/session: resume the seat that already has
+  // this name (keeps their role + chat history). Works mid-game too.
+  const byName = room.players.find(
+    (p) => p.name.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (byName) {
+    byName.connected = true;
+    return byName.id;
+  }
+
+  // Brand-new player — only allowed before the game starts.
   if (room.phase !== "lobby")
     throw new GameError("Game already started — can't join now.");
-  if (room.players.some((p) => p.name.toLowerCase() === trimmed.toLowerCase()))
-    throw new GameError("That name is taken in this room.");
 
   const player: Player = {
     id: playerId,
@@ -46,6 +59,7 @@ export function applyJoin(room: Room, playerId: string, name: string): void {
     roleId: null,
   };
   room.players.push(player);
+  return playerId;
 }
 
 // Auto-advance once every required actor has acted.

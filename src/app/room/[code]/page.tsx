@@ -1,9 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useParams, useRouter } from "next/navigation";
-import { joinGame, recallName, sendAction, subscribeToView } from "@/lib/game";
-import { ASSIGNABLE_ROLES, getRole, teamLabel } from "@/game/roles";
+import {
+  joinGame,
+  recallName,
+  sendAction,
+  subscribeToView,
+} from "@/lib/game";
+import { ASSIGNABLE_ROLES, getRole, type RoleDef, teamLabel } from "@/game/roles";
 import type { ChatLine, PublicPlayer, RoomView } from "@/lib/types";
 
 export default function RoomPage() {
@@ -19,16 +31,30 @@ export default function RoomPage() {
       router.replace("/");
       return;
     }
-    // Make sure we have a seat (handles direct loads / refreshes), then
-    // live-subscribe to our personal view of the room.
     let unsub = () => {};
+    const gotView = { current: false };
+    const onView = (v: RoomView) => {
+      gotView.current = true;
+      setError("");
+      setView(v);
+    };
+    // Subscribe right away so a refresh/returning player sees the room instantly
+    // if they already have a seat (no false "room not found").
+    unsub = subscribeToView(code, onView, () => {});
+    // In parallel, (re)claim the seat — reconnect by id, or resume by name.
     joinGame(code, name)
       .then(() => {
-        unsub = subscribeToView(code, setView, setError);
+        // Re-subscribe in case we adopted a resumed id (rejoin-by-name).
+        unsub();
+        unsub = subscribeToView(code, onView, () => {});
       })
       .catch((e: any) => {
+        if (gotView.current) return; // already showing the room — ignore hiccups
         setError(e.message);
-        if (/not found/i.test(e.message)) setTimeout(() => router.replace("/"), 1800);
+        if (/not found/i.test(e.message))
+          setTimeout(() => {
+            if (!gotView.current) router.replace("/");
+          }, 2000);
       });
     return () => unsub();
   }, [code, router]);
@@ -47,6 +73,12 @@ export default function RoomPage() {
 }
 
 /* ----------------------------- shared UI bits ---------------------------- */
+
+// Whether the player's own role is currently shown on screen (hide for privacy).
+const RoleViz = createContext<{ visible: boolean; toggle: () => void }>({
+  visible: true,
+  toggle: () => {},
+});
 
 const AVATAR_GRADIENTS = [
   "from-amber-400 to-orange-500",
@@ -154,6 +186,24 @@ function Room({ view }: { view: RoomView }) {
   }, [activeTab, chatCount]);
   const unread = activeTab === "chat" ? 0 : Math.max(0, chatCount - seen);
 
+  // --- Role privacy + dramatic reveal ---
+  const [roleVisible, setRoleVisible] = useState(false);
+  const [revealRoleId, setRevealRoleId] = useState<string | null>(null);
+  const roleId = view.you.roleId;
+  useEffect(() => {
+    if (view.you.isHost || !roleId) return;
+    // Show the dramatic reveal once per assigned role (survives refresh; fires
+    // again if the role changes, e.g. Psycho → Vigilante).
+    const key = `mafia:seenRole:${view.code}`;
+    if (localStorage.getItem(key) !== roleId) setRevealRoleId(roleId);
+  }, [roleId, view.you.isHost, view.code]);
+
+  const dismissReveal = () => {
+    localStorage.setItem(`mafia:seenRole:${view.code}`, roleId || "");
+    setRevealRoleId(null);
+    setRoleVisible(false); // re-hide for privacy after they've seen it
+  };
+
   const section =
     activeTab === "chat" && hasChat ? (
       <Chat view={view} />
@@ -166,23 +216,79 @@ function Room({ view }: { view: RoomView }) {
     );
 
   return (
-    <div className="space-y-5">
-      <Header view={view} />
+    <RoleViz.Provider value={{ visible: roleVisible, toggle: () => setRoleVisible((v) => !v) }}>
+      <div className="space-y-5">
+        <Header view={view} />
 
-      <div className="lg:flex lg:items-start lg:gap-5">
-        {/* PC: left-hand menu */}
-        <SideNav
-          tabs={tabs}
-          active={activeTab}
-          onChange={setTab}
-          unread={unread}
-        />
-        {/* Active section (mobile + desktop). Bottom padding clears the mobile bar. */}
-        <div className="min-w-0 flex-1 space-y-5 pb-28 lg:pb-0">{section}</div>
+        <div className="lg:flex lg:items-start lg:gap-5">
+          <SideNav tabs={tabs} active={activeTab} onChange={setTab} unread={unread} />
+          <div className="min-w-0 flex-1 space-y-5 pb-28 lg:pb-0">{section}</div>
+        </div>
+
+        <BottomNav tabs={tabs} active={activeTab} onChange={setTab} unread={unread} />
       </div>
 
-      {/* Mobile: bottom tab bar */}
-      <BottomNav tabs={tabs} active={activeTab} onChange={setTab} unread={unread} />
+      {revealRoleId && (
+        <RoleReveal role={getRole(revealRoleId)} onDone={dismissReveal} />
+      )}
+    </RoleViz.Provider>
+  );
+}
+
+// Full-screen, suspenseful role reveal shown when a player's role is assigned.
+function RoleReveal({ role, onDone }: { role: RoleDef | null; onDone: () => void }) {
+  const [stage, setStage] = useState(0); // 0 = build-up, 1 = revealed
+  useEffect(() => {
+    const t = setTimeout(() => setStage(1), 1400);
+    return () => clearTimeout(t);
+  }, []);
+  if (!role) return null;
+
+  const glow =
+    role.team === "mafia"
+      ? "shadow-rose-500/50"
+      : role.team === "neutral"
+        ? "shadow-amber-400/50"
+        : "shadow-cyan-400/50";
+  const ring =
+    role.team === "mafia"
+      ? "ring-rose-400/60"
+      : role.team === "neutral"
+        ? "ring-amber-300/60"
+        : "ring-cyan-300/60";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6 backdrop-blur-sm">
+      {stage === 0 ? (
+        <div className="text-center">
+          <div className="text-2xl font-semibold text-white/70 animate-pulse">
+            Dealing your role…
+          </div>
+          <div className="mt-6 text-6xl animate-spin-slow">🎭</div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-white/50 reveal-fade">
+            You are the
+          </div>
+          <div
+            className={`reveal-pop flex flex-col items-center rounded-[2rem] bg-[#15151d] px-10 py-10 shadow-2xl ${glow} ring-2 ${ring}`}
+          >
+            <div className="text-7xl drop-shadow-lg">{role.emoji}</div>
+            <div className="mt-3 text-4xl font-black">{role.name}</div>
+            <div className={`mt-1 text-sm font-bold uppercase tracking-widest ${teamAccentText(role.team)}`}>
+              {teamLabel(role.team)}
+            </div>
+            <p className="mt-4 max-w-xs text-sm text-white/65">{role.description}</p>
+          </div>
+          <button
+            onClick={onDone}
+            className="reveal-fade mt-8 rounded-2xl bg-white/15 px-8 py-3 font-bold ring-1 ring-white/20 transition hover:bg-white/25"
+          >
+            🙈 Got it — hide my role
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -293,6 +399,7 @@ function BottomNav({
 
 function Header({ view }: { view: RoomView }) {
   const role = getRole(view.you.roleId);
+  const { visible, toggle } = useContext(RoleViz);
   const phase: Record<string, { label: string; cls: string }> = {
     lobby: { label: "Lobby", cls: "bg-white/10 text-white/80" },
     night: { label: `🌙 Night ${view.day}`, cls: "bg-indigo-500/25 text-indigo-200" },
@@ -325,13 +432,25 @@ function Header({ view }: { view: RoomView }) {
             🎙️ God
           </span>
         ) : role ? (
-          <span
-            className={`flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold ${
-              view.you.alive ? teamAccentText(role.team) : "text-white/40 line-through"
+          <button
+            onClick={toggle}
+            title={visible ? "Tap to hide your role" : "Tap to reveal your role"}
+            className={`flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold transition hover:bg-white/15 ${
+              visible
+                ? view.you.alive
+                  ? teamAccentText(role.team)
+                  : "text-white/40 line-through"
+                : "text-white/55"
             }`}
           >
-            {role.emoji} {role.name}
-          </span>
+            {visible ? (
+              <>
+                {role.emoji} {role.name} <span className="opacity-60">🙈</span>
+              </>
+            ) : (
+              <>🎭 Tap to reveal</>
+            )}
+          </button>
         ) : null}
       </div>
     </header>
@@ -871,6 +990,7 @@ function ChatBox({
 function Roster({ view }: { view: RoomView }) {
   const all = useMemo(() => [view.you, ...view.players], [view]);
   const aliveCount = all.filter((p) => !p.isHost && p.alive).length;
+  const { visible: ownRoleVisible } = useContext(RoleViz);
 
   return (
     <Card>
@@ -881,7 +1001,10 @@ function Roster({ view }: { view: RoomView }) {
       <ul className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-1">
         {all.map((p) => {
           const role = getRole(p.roleId);
-          const reveal = p.id === view.you.id || view.you.isHost || view.phase === "ended";
+          const isYou = p.id === view.you.id;
+          // Your own role respects the hide toggle; others only at game end.
+          const reveal =
+            view.you.isHost || view.phase === "ended" || (isYou && ownRoleVisible);
           return (
             <li
               key={p.id}

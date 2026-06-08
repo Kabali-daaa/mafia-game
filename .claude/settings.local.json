@@ -51,7 +51,8 @@
       "Bash(npx --yes vercel@latest link --yes --project mafia-game)",
       "Bash(npx --yes vercel@latest --prod --yes)",
       "Bash(git commit -q -m 'Ignore .vercel project link folder *)",
-      "Bash(grep -iE \"\\\\.env\\\\.local$|service.*\\\\.json|adminsdk\")"
+      "Bash(grep -iE \"\\\\.env\\\\.local$|service.*\\\\.json|adminsdk\")",
+      "Bash(git commit -q -m 'Robust reconnect + rejoin-by-name, hide-role toggle, dramatic role reveal *)"
     ]
   }
 }
