@@ -7,3 +7,6 @@ node_modules
 # Generated screenshots (dev-only visual checks)
 screens/
 .vercel
+
+# Local Claude Code settings (machine-specific)
+.claude/settings.local.json

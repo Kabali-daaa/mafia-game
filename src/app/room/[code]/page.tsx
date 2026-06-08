@@ -694,12 +694,32 @@ function PhaseHeading({ emoji, title }: { emoji: string; title: string }) {
 
 function NightPhase({ view }: { view: RoomView }) {
   if (view.you.isHost) {
+    const board = view.nightControl?.board ?? [];
     return (
       <Card>
         <PhaseHeading emoji="🌙" title={`Night ${view.day}`} />
-        <p className="mt-2 text-white/60">
-          Players with night powers are acting in secret. Wait for them, or advance below.
+        <p className="mt-1 text-sm text-white/55">
+          Now calling: <span className="font-bold text-white/85">{view.nightStepLabel ?? "…"}</span>.
+          Tap the button below to move on.
         </p>
+        <ul className="mt-3 space-y-1.5">
+          {board.map((e, i) => (
+            <li
+              key={i}
+              className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm ring-1 ${
+                e.current ? "bg-indigo-500/15 ring-indigo-400/40" : "bg-white/[0.04] ring-white/10"
+              }`}
+            >
+              <span className="min-w-0">
+                <span className="text-white/45">{e.step}</span>{" "}
+                <span className="font-semibold">{e.name}</span>
+              </span>
+              <span className={`shrink-0 ${e.done ? "text-emerald-300" : "text-amber-300"}`}>
+                {e.text}
+              </span>
+            </li>
+          ))}
+        </ul>
       </Card>
     );
   }
@@ -716,7 +736,9 @@ function NightPhase({ view }: { view: RoomView }) {
         <>
           <PhaseHeading emoji="🌙" title={`Night ${view.day}`} />
           <p className="mt-2 text-white/60">
-            You have no action tonight. Sit tight until morning…
+            {view.nightStepLabel
+              ? `The God is waking the ${view.nightStepLabel}… wait for your turn.`
+              : "Sit tight…"}
           </p>
         </>
       )}
@@ -748,13 +770,17 @@ function DayPhase({ view }: { view: RoomView }) {
   const stage = view.voteStage;
   if (view.you.isHost) {
     const hostNote =
-      stage === "godchoice"
-        ? "The vote is deadlocked — break the tie below: Skip or Revote."
-        : stage === "choice"
-          ? "It's a tie — the town is voting Skip vs Revote."
-          : stage === "revote"
-            ? "Revote in progress between the tied players."
-            : "Let players debate in the town chat, then everyone votes.";
+      stage === "discussion"
+        ? "Discussion time — let the town argue in chat, then open the vote below."
+        : stage === "done"
+          ? "The day is settled. Begin the night when everyone's ready."
+          : stage === "godchoice"
+            ? "The vote is deadlocked — break the tie below: Skip or Revote."
+            : stage === "choice"
+              ? "It's a tie — the town is voting Skip vs Revote."
+              : stage === "revote"
+                ? "Revote in progress between the tied players."
+                : "Voting is open — players are casting their votes.";
     return (
       <Card>
         <PhaseHeading emoji="☀️" title={`Day ${view.day}`} />
@@ -763,14 +789,20 @@ function DayPhase({ view }: { view: RoomView }) {
     );
   }
   if (!view.you.alive) return <DeadNotice text="The dead can't vote. Enjoy the show." />;
+
+  // Player view with no active vote prompt → discussion / settled / God-deciding.
   if (!view.prompt) {
-    // No prompt during the God's tiebreak decision.
+    const msg =
+      stage === "discussion"
+        ? "Discuss in the town chat 💬 — the God will open the vote soon."
+        : stage === "done"
+          ? "The day's vote is settled. Waiting for the God to begin the night…"
+          : "The vote tied — waiting for the God to decide Skip or Revote…";
     return (
-      <Card className="text-center">
-        <div className="text-3xl">⚖️</div>
-        <p className="mt-2 text-white/60">
-          The vote tied — waiting for the God to decide Skip or Revote…
-        </p>
+      <Card>
+        <PrivateMessage view={view} />
+        <PhaseHeading emoji="☀️" title={`Day ${view.day}`} />
+        <p className="mt-2 text-white/60">{msg}</p>
       </Card>
     );
   }
@@ -802,38 +834,40 @@ function HostControls({ view }: { view: RoomView }) {
 
   const label =
     view.phase === "night"
-      ? "Resolve night →"
+      ? view.nightControl?.nextLabel
+        ? `Next: ${view.nightControl.nextLabel} →`
+        : "Resolve night 🌅"
       : view.phase === "witch"
         ? "Reveal morning →"
-        : stage === "choice"
-          ? "Resolve choice →"
-          : stage === "revote"
-            ? "Resolve revote →"
-            : "Resolve vote →";
+        : stage === "discussion"
+          ? "Open the vote 🗳️"
+          : stage === "done"
+            ? `Begin Night ${view.day + 1} 🌙`
+            : stage === "choice"
+              ? "Resolve choice →"
+              : stage === "revote"
+                ? "Resolve revote →"
+                : "Resolve vote →";
 
   // Map a vote-count key to a readable label (player name, or Skip/Revote).
   const labelFor = (id: string) =>
     id === "skip" ? "⏭️ Skip" : id === "revote" ? "🔁 Revote" : all.find((p) => p.id === id)?.name ?? id;
 
+  const dayVoting =
+    view.phase === "day" && (stage === "vote" || stage === "revote" || stage === "choice");
   return (
     <Card className="!bg-amber-400/10 ring-amber-400/30">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-extrabold text-amber-200">🎙️ God controls</h2>
-        {status && !isGodChoice && (
+        {status && (dayVoting || view.phase === "witch") && (
           <span className="rounded-full bg-amber-400/20 px-3 py-1 text-sm font-bold text-amber-100">
-            {view.phase === "day"
-              ? stage === "choice"
-                ? "Choice"
-                : "Votes"
-              : view.phase === "witch"
-                ? "Witch"
-                : "Actions"}{" "}
+            {view.phase === "day" ? (stage === "choice" ? "Choice" : "Votes") : "Witch"}{" "}
             {status.acted}/{status.pending}
           </span>
         )}
       </div>
 
-      {view.phase === "day" && status && !isGodChoice && (
+      {dayVoting && status && (
         <div className="mt-3 space-y-1.5">
           {Object.entries(status.voteCounts).length === 0 ? (
             <div className="text-sm text-amber-100/60">No votes yet.</div>

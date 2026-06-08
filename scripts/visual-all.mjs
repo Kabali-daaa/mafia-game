@@ -1,12 +1,12 @@
 // Visual end-to-end: drive the real browser through every UI state, assert key
 // elements + zero horizontal overflow, and save screenshots.
-import puppeteer from "/Users/karthikeyanm/Desktop/game/node_modules/puppeteer-core/lib/esm/puppeteer/puppeteer-core.js";
-import { initializeApp } from "/Users/karthikeyanm/Desktop/game/node_modules/firebase/app/dist/index.mjs";
-import { getFirestore, doc, getDoc } from "/Users/karthikeyanm/Desktop/game/node_modules/firebase/firestore/dist/index.mjs";
+import puppeteer from "../node_modules/puppeteer-core/lib/esm/puppeteer/puppeteer-core.js";
+import { initializeApp } from "../node_modules/firebase/app/dist/index.mjs";
+import { getFirestore, doc, getDoc } from "../node_modules/firebase/firestore/dist/index.mjs";
 
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const URL = "http://localhost:3000";
-const OUT = "/Users/karthikeyanm/Desktop/game/screens";
+const OUT = "screens";
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const api = (p, b) => fetch(URL + "/api/" + p, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then(async (r) => ({ status: r.status, data: await r.json().catch(() => ({})) }));
 const app = initializeApp({ apiKey: "FIREBASE_API_KEY_REMOVED", authDomain: "mafia-game-b8064.firebaseapp.com", projectId: "mafia-game-b8064" });
@@ -31,6 +31,26 @@ async function game(tag, config) {
   return { code, host: tag + "h", ids, roles };
 }
 const send = (code, pid, type, payload = {}) => api("action", { code, playerId: pid, type, payload });
+// Drive the host-stepped night to completion. plan: { playerId: targetIds[] }.
+async function runNight(code, host, plan = {}) {
+  for (let i = 0; i < 14; i++) {
+    const hv = await view(code, host);
+    if (hv.phase !== "night") return;
+    for (const pid of Object.keys(plan)) {
+      const pv = await view(code, pid);
+      if (pv.prompt && pv.prompt.kind === "night" && !pv.prompt.submitted)
+        await send(code, pid, "nightAction", { targetIds: plan[pid] });
+    }
+    await wait(220);
+    await send(code, host, "advance");
+    await wait(280);
+  }
+}
+// God opens the day vote (the day starts in "discussion").
+async function openVote(code, host) {
+  const hv = await view(code, host);
+  if (hv.phase === "day" && hv.voteStage === "discussion") { await send(code, host, "advance"); await wait(300); }
+}
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", args: ["--no-sandbox"] });
 const MOBILE = { width: 390, height: 844, isMobile: true, hasTouch: true };
@@ -70,7 +90,7 @@ section("Dramatic role reveal + hide toggle (mobile)");
 section("Mobile bottom nav + unread chat badge");
 {
   const g = await game("vz2_", { killer: 1, police: 1, villager: 2 });
-  await send(g.code, g.host, "advance"); await wait(400); // → day so town chat is open
+  await runNight(g.code, g.host, {}); // → day (town chat open)
   const page = await openAs(g.code, g.ids[0], "A", MOBILE);
   // dismiss any reveal
   await click(page, "Got it"); await wait(500);
@@ -91,7 +111,7 @@ section("Mobile bottom nav + unread chat badge");
 section("Skip / Revote choice UI (mobile player)");
 {
   const g = await game("vz3_", { killer: 1, villager: 3 });
-  await send(g.code, g.host, "advance"); await wait(400); // → day
+  await runNight(g.code, g.host, {}); await openVote(g.code, g.host); // → day, vote open
   const [a, b, c, d] = g.ids;
   await send(g.code, a, "vote", { targetId: b });
   await send(g.code, b, "vote", { targetId: a });
@@ -109,7 +129,7 @@ section("Skip / Revote choice UI (mobile player)");
 section("God controls during a deadlock (desktop)");
 {
   const g = await game("vz4_", { killer: 1, villager: 3 });
-  await send(g.code, g.host, "advance"); await wait(400);
+  await runNight(g.code, g.host, {}); await openVote(g.code, g.host);
   const [a, b, c, d] = g.ids;
   await send(g.code, a, "vote", { targetId: b }); await send(g.code, b, "vote", { targetId: a });
   await send(g.code, c, "vote", { targetId: a }); await send(g.code, d, "vote", { targetId: b });
@@ -129,8 +149,7 @@ section("God controls during a deadlock (desktop)");
 section("Witch revive prompt (mobile)");
 {
   const g = await game("vz5_", { killer: 1, witch: 1, villager: 2 });
-  await send(g.code, g.roles.killer[0], "nightAction", { targetIds: [g.roles.villager[0]] });
-  await wait(600);
+  await runNight(g.code, g.host, { [g.roles.killer[0]]: [g.roles.villager[0]] });
   const page = await openAs(g.code, g.roles.witch[0], "W", MOBILE);
   A(await until(page, /Revive|fallen/i), "Witch sees the revive prompt");
   A(!(await overflow(page)), "witch prompt: no overflow (mobile)");
@@ -141,8 +160,7 @@ section("Witch revive prompt (mobile)");
 section("Game-over screen (mobile)");
 {
   const g = await game("vz6_", { killer: 1, villager: 2 });
-  await send(g.code, g.roles.killer[0], "nightAction", { targetIds: [g.roles.villager[0]] });
-  await wait(700); // killers reach parity → ended
+  await runNight(g.code, g.host, { [g.roles.killer[0]]: [g.roles.villager[0]] }); // parity → ended
   const page = await openAs(g.code, g.ids[0], "A", MOBILE);
   A(await until(page, /\bwins?!/i), "game-over screen shows the winner");
   A(!(await overflow(page)), "ended screen: no overflow (mobile)");
@@ -153,7 +171,7 @@ section("Game-over screen (mobile)");
 section("Desktop left-hand menu layout");
 {
   const g = await game("vz7_", { killer: 1, police: 1, villager: 2 });
-  await send(g.code, g.host, "advance"); await wait(400);
+  await runNight(g.code, g.host, {}); await openVote(g.code, g.host);
   const page = await openAs(g.code, g.host, "GOD", DESKTOP);
   const body = await txt(page);
   A(/Game/.test(body) && /Chat/.test(body) && /Players/.test(body) && /Story/.test(body), "desktop sidebar shows all sections");
