@@ -1,19 +1,21 @@
 # 🎭 Mafia — real-time party game
 
 A web-based Mafia game with a **host** (narrator) and **players** who join from
-their own phones using a room code. Built with Next.js + Socket.IO so the whole
-table sees the game update live.
+their own phones using a room code. Built with **Next.js + Firebase Firestore** —
+game state lives in Firestore and pushes live updates to every player, so it runs
+fully on serverless hosting (Vercel) with no always-on server.
 
 ## Run it locally
 
 ```bash
 npm install
+cp .env.local.example .env.local   # then fill in your Firebase values
 npm run dev
 ```
 
 Open http://localhost:3000. To test with multiple players on one machine, open
 several browser tabs (use incognito / different browsers so each gets its own
-player id). On the same WiFi, others can reach you at `http://<your-ip>:3000`.
+player id).
 
 ## How to play
 
@@ -69,20 +71,23 @@ at night), and a `resolve` function describing the power. The lobby, role
 dealing, night prompts, and resolution all pick it up automatically — no other
 files to touch for most roles.
 
-## Deploying
+## Architecture
 
-This needs an **always-on Node server with WebSockets**, so it does *not* run on
-Vercel's serverless functions. Easiest options (all have free tiers):
+- **Next.js app** (UI + `/api` routes) — deploys to **Vercel** for free.
+- **Firestore** stores each room. The server (`/api` routes, Firebase Admin SDK)
+  is the only thing that mutates state; it writes a per-player **view document**
+  that hides other players' roles. Browsers subscribe to their own view doc for
+  instant updates.
+- Game logic lives in `src/game/` (`engine.ts`, `roles.ts`, `actions.ts`) and is
+  transport-agnostic.
 
-- **Railway** — New Project → Deploy from repo. It auto-detects Node. Set the
-  start command to `npm run start` and it gives you a public URL.
-- **Render** — New → Web Service → connect repo. Build: `npm install && npm run build`.
-  Start: `npm run start`.
-- **Fly.io / a VPS** — run `npm run build` then `npm run start` behind the
-  platform's port (`PORT` env var is respected).
+## Deploying (free: Vercel + Firebase)
 
-Build for production locally to verify:
+1. **Firebase**: create a project, enable **Firestore**, register a **Web app**
+   (gives the `NEXT_PUBLIC_FIREBASE_*` values), and generate a **service-account
+   key** (the `FIREBASE_SERVICE_ACCOUNT` JSON). Publish the rules in
+   `firestore.rules`.
+2. **Vercel**: import the GitHub repo, add the 7 environment variables from
+   `.env.local.example`, and deploy. No special build settings needed.
 
-```bash
-npm run build && npm run start
-```
+See `.env.local.example` for the exact variables.

@@ -94,24 +94,3 @@ export interface HostStatus {
 
 // Number of each role to include. Keyed by role id.
 export type RoleConfig = Record<string, number>;
-
-// ---- Socket.IO event contracts ----
-
-export interface ServerToClient {
-  room: (view: RoomView) => void;
-  error: (message: string) => void;
-  joined: (payload: { code: string; playerId: string }) => void;
-}
-
-export interface ClientToServer {
-  create: (payload: { name: string; playerId: string }) => void;
-  join: (payload: { code: string; name: string; playerId: string }) => void;
-  setConfig: (payload: { config: RoleConfig }) => void;
-  start: () => void;
-  // Targets chosen for the current night/witch prompt (empty = skip).
-  nightAction: (payload: { targetIds: string[] }) => void;
-  vote: (payload: { targetId: string | null }) => void;
-  chat: (payload: { channel: "town" | "killers"; text: string }) => void;
-  advance: () => void; // host moves the game forward (night->day, etc.)
-  reset: () => void; // host returns the room to the lobby for a new game
-}

@@ -6,9 +6,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "tsx watch server.ts",
+    "dev": "next dev",
     "build": "next build",
-    "start": "NODE_ENV=production tsx server.ts",
+    "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
@@ -16,17 +16,17 @@
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
     "autoprefixer": "10.4.19",
+    "firebase": "^10.13.2",
+    "firebase-admin": "^12.6.0",
     "next": "^14.2.33",
     "postcss": "8.4.39",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "socket.io": "4.7.5",
-    "socket.io-client": "4.7.5",
     "tailwindcss": "3.4.6",
-    "tsx": "4.16.2",
     "typescript": "5.5.3"
   },
   "devDependencies": {
-    "puppeteer-core": "^23.11.1"
+    "puppeteer-core": "^23.11.1",
+    "tsx": "4.16.2"
   }
 }

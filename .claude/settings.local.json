@@ -30,7 +30,19 @@
       "Bash(git config *)",
       "Bash(git add *)",
       "Bash(git commit -q -m 'Mafia party game — real-time multiplayer, ready for deploy *)",
-      "Bash(brew --version)"
+      "Bash(brew --version)",
+      "Bash(brew install *)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(curl -s -m 90 -o /dev/null -w 'status: %{http_code}  time: %{time_total}s\\\\n' https://mafia-game-wafe.onrender.com/)",
+      "Bash(curl -s -m 60 -o /dev/null -w 'status: %{http_code}\\\\n' https://mafia-game-wafe.onrender.com/room/TEST)",
+      "Bash(curl -s -m 60 'https://mafia-game-wafe.onrender.com/socket.io/?EIO=4&transport=polling')",
+      "Bash(curl -s -m 30 -o /dev/null -w '%{http_code}' https://mafia-game-wafe.onrender.com/)",
+      "Bash(curl -s -m 30 -D - -o /dev/null https://mafia-game-wafe.onrender.com/)",
+      "Bash(pkill -f \"tsx\")",
+      "Bash(pkill -f \"next\")",
+      "Bash(git commit -q -m 'Re-architect networking: Firebase Firestore instead of Socket.IO \\(Vercel-ready\\) *)",
+      "Bash(git push *)"
     ]
   }
 }

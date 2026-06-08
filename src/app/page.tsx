@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getPlayerId, getSocket, recallName, rememberName } from "@/lib/socket";
+import { createGame, joinGame, recallName, rememberName } from "@/lib/game";
 
 export default function Home() {
   const router = useRouter();
@@ -13,39 +13,35 @@ export default function Home() {
 
   useEffect(() => {
     setName(recallName());
-    const socket = getSocket();
-    const onJoined = ({ code }: { code: string }) => router.push(`/room/${code}`);
-    const onError = (msg: string) => {
-      setError(msg);
-      setBusy(false);
-    };
-    socket.on("joined", onJoined);
-    socket.on("error", onError);
-    return () => {
-      socket.off("joined", onJoined);
-      socket.off("error", onError);
-    };
-  }, [router]);
+  }, []);
 
-  const create = () => {
+  const create = async () => {
     setError("");
     if (!name.trim()) return setError("Enter your name first.");
     rememberName(name.trim());
     setBusy(true);
-    getSocket().emit("create", { name: name.trim(), playerId: getPlayerId() });
+    try {
+      const { code } = await createGame(name.trim());
+      router.push(`/room/${code}`);
+    } catch (e: any) {
+      setError(e.message);
+      setBusy(false);
+    }
   };
 
-  const join = () => {
+  const join = async () => {
     setError("");
     if (!name.trim()) return setError("Enter your name first.");
     if (!code.trim()) return setError("Enter a room code.");
     rememberName(name.trim());
     setBusy(true);
-    getSocket().emit("join", {
-      code: code.trim().toUpperCase(),
-      name: name.trim(),
-      playerId: getPlayerId(),
-    });
+    try {
+      const res = await joinGame(code.trim().toUpperCase(), name.trim());
+      router.push(`/room/${res.code}`);
+    } catch (e: any) {
+      setError(e.message);
+      setBusy(false);
+    }
   };
 
   return (
@@ -77,7 +73,7 @@ export default function Home() {
           disabled={busy}
           className="mt-5 w-full rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 py-3.5 font-bold text-white shadow-lg shadow-violet-900/40 transition hover:opacity-90 active:scale-[0.99] disabled:opacity-50"
         >
-          Host a new game
+          {busy ? "Please wait…" : "Host a new game"}
         </button>
 
         <div className="my-5 flex items-center gap-3 text-xs text-white/40">

@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // A player may READ their own per-player view document (this is how their
+    // screen gets live updates). Nobody can write from the browser.
+    match /rooms/{code}/views/{viewId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Everything else — including the master room document that holds EVERY
+    // player's secret role — is locked. Only the server (Admin SDK, which
+    // bypasses these rules) can read or write it.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

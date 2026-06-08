@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getPlayerId, getSocket, recallName } from "@/lib/socket";
+import { joinGame, recallName, sendAction, subscribeToView } from "@/lib/game";
 import { ASSIGNABLE_ROLES, getRole, teamLabel } from "@/game/roles";
 import type { ChatLine, PublicPlayer, RoomView } from "@/lib/types";
 
@@ -14,24 +14,23 @@ export default function RoomPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const socket = getSocket();
     const name = recallName();
     if (!name) {
       router.replace("/");
       return;
     }
-    const onRoom = (v: RoomView) => setView(v);
-    const onError = (msg: string) => {
-      setError(msg);
-      if (msg === "Room not found.") setTimeout(() => router.replace("/"), 1500);
-    };
-    socket.on("room", onRoom);
-    socket.on("error", onError);
-    socket.emit("join", { code, name, playerId: getPlayerId() });
-    return () => {
-      socket.off("room", onRoom);
-      socket.off("error", onError);
-    };
+    // Make sure we have a seat (handles direct loads / refreshes), then
+    // live-subscribe to our personal view of the room.
+    let unsub = () => {};
+    joinGame(code, name)
+      .then(() => {
+        unsub = subscribeToView(code, setView, setError);
+      })
+      .catch((e: any) => {
+        setError(e.message);
+        if (/not found/i.test(e.message)) setTimeout(() => router.replace("/"), 1800);
+      });
+    return () => unsub();
   }, [code, router]);
 
   if (error && !view) {
@@ -342,14 +341,15 @@ function Header({ view }: { view: RoomView }) {
 /* -------------------------------- lobby ---------------------------------- */
 
 function Lobby({ view }: { view: RoomView }) {
-  const socket = getSocket();
   const isHost = view.you.isHost;
   const playerCount = [view.you, ...view.players].filter((p) => !p.isHost).length;
   const total = Object.values(view.config).reduce((a, b) => a + b, 0);
   const [copied, setCopied] = useState(false);
 
   const setCount = (roleId: string, n: number) =>
-    socket.emit("setConfig", { config: { ...view.config, [roleId]: Math.max(0, n) } });
+    sendAction(view.code, "setConfig", {
+      config: { ...view.config, [roleId]: Math.max(0, n) },
+    });
 
   const copy = () => {
     navigator.clipboard?.writeText(view.code).then(() => {
@@ -425,7 +425,7 @@ function Lobby({ view }: { view: RoomView }) {
             );
           })}
           <button
-            onClick={() => socket.emit("start")}
+            onClick={() => sendAction(view.code, "start")}
             className="mt-3 w-full rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 py-3.5 font-bold shadow-lg shadow-violet-900/40 transition hover:opacity-90 active:scale-[0.99]"
           >
             Start game
@@ -444,7 +444,6 @@ function Lobby({ view }: { view: RoomView }) {
 /* ------------------------------ action panel ----------------------------- */
 
 function ActionPanel({ view }: { view: RoomView }) {
-  const socket = getSocket();
   const prompt = view.prompt!;
   const [picked, setPicked] = useState<string[]>([]);
   const [sent, setSent] = useState(false);
@@ -470,8 +469,9 @@ function ActionPanel({ view }: { view: RoomView }) {
     });
 
   const submit = (ids: string[]) => {
-    if (prompt.kind === "vote") socket.emit("vote", { targetId: ids[0] ?? null });
-    else socket.emit("nightAction", { targetIds: ids });
+    if (prompt.kind === "vote")
+      sendAction(view.code, "vote", { targetId: ids[0] ?? null });
+    else sendAction(view.code, "nightAction", { targetIds: ids });
     setSent(true);
   };
 
@@ -639,7 +639,6 @@ function DeadNotice({ text }: { text: string }) {
 }
 
 function HostControls({ view }: { view: RoomView }) {
-  const socket = getSocket();
   const status = view.hostStatus;
   const all = [view.you, ...view.players];
   const label =
@@ -685,7 +684,7 @@ function HostControls({ view }: { view: RoomView }) {
       )}
 
       <button
-        onClick={() => socket.emit("advance")}
+        onClick={() => sendAction(view.code, "advance")}
         className="mt-4 w-full rounded-2xl bg-amber-400 py-3 font-bold text-[#2a1e00] transition hover:bg-amber-300 active:scale-[0.99]"
       >
         {label}
@@ -695,7 +694,6 @@ function HostControls({ view }: { view: RoomView }) {
 }
 
 function Ended({ view }: { view: RoomView }) {
-  const socket = getSocket();
   const won = view.winner;
   const conf =
     won === "town"
@@ -710,7 +708,7 @@ function Ended({ view }: { view: RoomView }) {
       <p className="mt-1 text-white/65">Final roles are revealed in the roster.</p>
       {view.you.isHost && (
         <button
-          onClick={() => socket.emit("reset")}
+          onClick={() => sendAction(view.code, "reset")}
           className="mt-4 rounded-2xl bg-white/15 px-6 py-3 font-bold ring-1 ring-white/20 transition hover:bg-white/25"
         >
           Play again
@@ -736,6 +734,7 @@ function Chat({ view }: { view: RoomView }) {
               : "Private to you and your fellow Killers."
           }
           accent="killers"
+          code={view.code}
           lines={chat.killers}
           channel="killers"
           canPost={chat.canPostKillers}
@@ -756,6 +755,7 @@ function Chat({ view }: { view: RoomView }) {
             : "Anonymous. No one can tell who said what."
         }
         accent="town"
+        code={view.code}
         lines={chat.town}
         channel="town"
         canPost={chat.canPostTown}
@@ -777,6 +777,7 @@ function ChatBox({
   title,
   subtitle,
   accent,
+  code,
   lines,
   channel,
   canPost,
@@ -785,12 +786,12 @@ function ChatBox({
   title: string;
   subtitle: string;
   accent: "town" | "killers";
+  code: string;
   lines: ChatLine[];
   channel: "town" | "killers";
   canPost: boolean;
   placeholder: string;
 }) {
-  const socket = getSocket();
   const [text, setText] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -801,7 +802,7 @@ function ChatBox({
   const send = () => {
     const t = text.trim();
     if (!t || !canPost) return;
-    socket.emit("chat", { channel, text: t });
+    sendAction(code, "chat", { channel, text: t });
     setText("");
   };
 
