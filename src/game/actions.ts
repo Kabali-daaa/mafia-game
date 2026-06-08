@@ -9,11 +9,14 @@ import {
   canStart,
   postChat,
   resetToLobby,
+  resolveChoice,
   resolveDay,
+  resolveGodChoice,
   resolveNight,
   resolveWitch,
   type Room,
   startGame,
+  submitChoice,
   submitNightAction,
   submitVote,
 } from "./engine";
@@ -64,8 +67,12 @@ export function applyJoin(room: Room, playerId: string, name: string): string {
 
 // Auto-advance once every required actor has acted.
 function maybeAdvance(room: Room): void {
-  if (room.phase === "night" && allNightActionsIn(room)) resolveNight(room);
-  else if (room.phase === "day" && allVotesIn(room)) resolveDay(room);
+  if (room.phase === "night" && allNightActionsIn(room)) {
+    resolveNight(room);
+  } else if (room.phase === "day" && allVotesIn(room)) {
+    if (room.voteStage === "choice") resolveChoice(room);
+    else resolveDay(room); // "vote" / "revote"
+  }
 }
 
 export type ActionType =
@@ -73,6 +80,8 @@ export type ActionType =
   | "start"
   | "nightAction"
   | "vote"
+  | "choice"
+  | "godDecide"
   | "chat"
   | "advance"
   | "reset";
@@ -122,6 +131,16 @@ export function applyAction(
       maybeAdvance(room);
       return;
     }
+    case "choice": {
+      submitChoice(room, playerId, String(payload?.choice ?? ""));
+      maybeAdvance(room);
+      return;
+    }
+    case "godDecide": {
+      if (!isHost) return;
+      resolveGodChoice(room, String(payload?.decision ?? "skip"));
+      return;
+    }
     case "chat": {
       const channel = payload?.channel;
       if (channel !== "town" && channel !== "killers") return;
@@ -132,7 +151,11 @@ export function applyAction(
       if (!isHost) return;
       if (room.phase === "night") resolveNight(room);
       else if (room.phase === "witch") resolveWitch(room, null, null);
-      else if (room.phase === "day") resolveDay(room);
+      else if (room.phase === "day") {
+        if (room.voteStage === "choice") resolveChoice(room);
+        else if (room.voteStage === "godchoice") resolveGodChoice(room, "skip");
+        else resolveDay(room); // "vote" / "revote"
+      }
       return;
     }
     case "reset": {

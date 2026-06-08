@@ -602,6 +602,26 @@ function ActionPanel({ view }: { view: RoomView }) {
     );
   }
 
+  // Skip / Revote choice on a tied vote.
+  if (prompt.kind === "choice") {
+    return (
+      <div className="mt-4 grid gap-2.5">
+        {(prompt.choices ?? []).map((c) => (
+          <button
+            key={c.id}
+            onClick={() => {
+              sendAction(view.code, "choice", { choice: c.id });
+              setSent(true);
+            }}
+            className="rounded-2xl bg-white/5 px-4 py-4 font-bold ring-1 ring-white/10 transition hover:bg-white/10 active:scale-[0.98]"
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
@@ -725,24 +745,41 @@ function WitchPhase({ view }: { view: RoomView }) {
 }
 
 function DayPhase({ view }: { view: RoomView }) {
+  const stage = view.voteStage;
   if (view.you.isHost) {
+    const hostNote =
+      stage === "godchoice"
+        ? "The vote is deadlocked — break the tie below: Skip or Revote."
+        : stage === "choice"
+          ? "It's a tie — the town is voting Skip vs Revote."
+          : stage === "revote"
+            ? "Revote in progress between the tied players."
+            : "Let players debate in the town chat, then everyone votes.";
     return (
       <Card>
         <PhaseHeading emoji="☀️" title={`Day ${view.day}`} />
-        <p className="mt-2 text-white/60">
-          Let players debate in the town chat, then everyone votes. Advance when the
-          votes are in.
-        </p>
+        <p className="mt-2 text-white/60">{hostNote}</p>
       </Card>
     );
   }
   if (!view.you.alive) return <DeadNotice text="The dead can't vote. Enjoy the show." />;
-  if (!view.prompt) return null;
+  if (!view.prompt) {
+    // No prompt during the God's tiebreak decision.
+    return (
+      <Card className="text-center">
+        <div className="text-3xl">⚖️</div>
+        <p className="mt-2 text-white/60">
+          The vote tied — waiting for the God to decide Skip or Revote…
+        </p>
+      </Card>
+    );
+  }
+  const isChoice = view.prompt.kind === "choice";
   return (
     <Card>
       {/* Night results (e.g. the Police squad's finding) surface in the morning. */}
       <PrivateMessage view={view} />
-      <PhaseHeading emoji="🗳️" title={view.prompt.text} />
+      <PhaseHeading emoji={isChoice ? "🤝" : "🗳️"} title={view.prompt.text} />
       <ActionPanel view={view} />
     </Card>
   );
@@ -760,26 +797,43 @@ function DeadNotice({ text }: { text: string }) {
 function HostControls({ view }: { view: RoomView }) {
   const status = view.hostStatus;
   const all = [view.you, ...view.players];
+  const stage = view.voteStage;
+  const isGodChoice = view.phase === "day" && stage === "godchoice";
+
   const label =
     view.phase === "night"
       ? "Resolve night →"
       : view.phase === "witch"
         ? "Reveal morning →"
-        : "Resolve vote →";
+        : stage === "choice"
+          ? "Resolve choice →"
+          : stage === "revote"
+            ? "Resolve revote →"
+            : "Resolve vote →";
+
+  // Map a vote-count key to a readable label (player name, or Skip/Revote).
+  const labelFor = (id: string) =>
+    id === "skip" ? "⏭️ Skip" : id === "revote" ? "🔁 Revote" : all.find((p) => p.id === id)?.name ?? id;
 
   return (
     <Card className="!bg-amber-400/10 ring-amber-400/30">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-extrabold text-amber-200">🎙️ God controls</h2>
-        {status && (
+        {status && !isGodChoice && (
           <span className="rounded-full bg-amber-400/20 px-3 py-1 text-sm font-bold text-amber-100">
-            {view.phase === "day" ? "Votes" : view.phase === "witch" ? "Witch" : "Actions"}{" "}
+            {view.phase === "day"
+              ? stage === "choice"
+                ? "Choice"
+                : "Votes"
+              : view.phase === "witch"
+                ? "Witch"
+                : "Actions"}{" "}
             {status.acted}/{status.pending}
           </span>
         )}
       </div>
 
-      {view.phase === "day" && status && (
+      {view.phase === "day" && status && !isGodChoice && (
         <div className="mt-3 space-y-1.5">
           {Object.entries(status.voteCounts).length === 0 ? (
             <div className="text-sm text-amber-100/60">No votes yet.</div>
@@ -792,8 +846,10 @@ function HostControls({ view }: { view: RoomView }) {
                   className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-1.5 text-sm"
                 >
                   <span className="flex items-center gap-2">
-                    <Avatar name={all.find((p) => p.id === id)?.name ?? "?"} size={24} />
-                    {all.find((p) => p.id === id)?.name ?? id}
+                    {id !== "skip" && id !== "revote" && (
+                      <Avatar name={all.find((p) => p.id === id)?.name ?? "?"} size={24} />
+                    )}
+                    {labelFor(id)}
                   </span>
                   <span className="font-bold text-amber-200">{n}</span>
                 </div>
@@ -802,12 +858,34 @@ function HostControls({ view }: { view: RoomView }) {
         </div>
       )}
 
-      <button
-        onClick={() => sendAction(view.code, "advance")}
-        className="mt-4 w-full rounded-2xl bg-amber-400 py-3 font-bold text-[#2a1e00] transition hover:bg-amber-300 active:scale-[0.99]"
-      >
-        {label}
-      </button>
+      {isGodChoice ? (
+        <div className="mt-3">
+          <p className="text-sm text-amber-100/80">
+            The vote is deadlocked. Your call:
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => sendAction(view.code, "godDecide", { decision: "skip" })}
+              className="flex-1 rounded-2xl bg-white/15 py-3 font-bold ring-1 ring-white/20 transition hover:bg-white/25"
+            >
+              ⏭️ Skip
+            </button>
+            <button
+              onClick={() => sendAction(view.code, "godDecide", { decision: "revote" })}
+              className="flex-1 rounded-2xl bg-amber-400 py-3 font-bold text-[#2a1e00] transition hover:bg-amber-300"
+            >
+              🔁 Revote
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => sendAction(view.code, "advance")}
+          className="mt-4 w-full rounded-2xl bg-amber-400 py-3 font-bold text-[#2a1e00] transition hover:bg-amber-300 active:scale-[0.99]"
+        >
+          {label}
+        </button>
+      )}
     </Card>
   );
 }

@@ -7,6 +7,9 @@ export type Team = "town" | "mafia" | "neutral";
 // (if any) sees who died and may revive someone before morning is announced.
 export type Phase = "lobby" | "night" | "witch" | "day" | "ended";
 
+// Day-vote sub-stage (tiebreak state machine).
+export type VoteStage = "vote" | "choice" | "godchoice" | "revote";
+
 export interface Player {
   id: string; // stable per-player id (stored in browser, survives reconnect)
   name: string;
@@ -43,6 +46,8 @@ export interface RoomView {
   hostStatus: HostStatus | null;
   // Chat state tailored to this viewer.
   chat: ChatState;
+  // Day-vote sub-stage (null outside the day phase).
+  voteStage: VoteStage | null;
 }
 
 export interface ChatState {
@@ -72,11 +77,13 @@ export interface PublicPlayer {
 }
 
 export interface ActionPrompt {
-  kind: "night" | "vote" | "witch";
+  kind: "night" | "vote" | "witch" | "choice";
   text: string;
   roleId: string | null;
   // Eligible target player ids.
   targets: string[];
+  // For "choice" prompts (e.g. Skip vs Revote) — fixed button options.
+  choices?: { id: string; label: string }[];
   // How many targets must be chosen (Cupid picks 2; everyone else 1).
   selectCount: number;
   canSkip: boolean;

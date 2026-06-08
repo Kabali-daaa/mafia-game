@@ -38,6 +38,10 @@ export interface Room {
   nightActions: Record<string, string[]>;
   // Submitted day votes this phase: voterId -> targetId|null.
   votes: Record<string, string | null>;
+  // Day-vote sub-stage + tiebreak bookkeeping.
+  voteStage: VoteStage;
+  tiedCandidates: string[];
+  choiceVotes: Record<string, string>; // voterId -> "skip" | "revote"
   // Private results to surface to specific players (reset as phases turn over).
   privateMessages: Record<string, string>;
   // Persistent whole-game role state (lovers, item visits, …).
@@ -50,6 +54,8 @@ export interface Room {
   chat: { town: ChatMessage[]; killers: ChatMessage[] };
   chatSeq: number;
 }
+
+export type VoteStage = "vote" | "choice" | "godchoice" | "revote";
 
 // A stored chat message (server-side; the sender is hidden when sent to players).
 export interface ChatMessage {
@@ -84,6 +90,9 @@ export function createRoom(code: string, host: Player): Room {
     winner: null,
     nightActions: {},
     votes: {},
+    voteStage: "vote",
+    tiedCandidates: [],
+    choiceVotes: {},
     privateMessages: {},
     roleState: freshRoleState(),
     deathGroups: null,
@@ -172,6 +181,9 @@ export function startGame(room: Room): void {
   room.day = 1;
   room.nightActions = {};
   room.votes = {};
+  room.voteStage = "vote";
+  room.tiedCandidates = [];
+  room.choiceVotes = {};
   room.privateMessages = {};
   room.roleState = freshRoleState();
   room.deathGroups = null;
@@ -448,6 +460,10 @@ function finalizeNight(
   }
 
   room.phase = "day";
+  room.voteStage = "vote";
+  room.votes = {};
+  room.choiceVotes = {};
+  room.tiedCandidates = [];
   room.deathGroups = null;
   room.nightActions = {};
 
@@ -505,61 +521,116 @@ export function resolveWitch(
   );
 }
 
-// ---- day phase (voting) ----
+// ---- day phase (voting + tiebreak) ----
+//
+// voteStage flow:
+//   "vote"      → everyone votes a suspect. Unique top → eliminated. Tie → "choice".
+//   "choice"    → town votes Skip vs Revote. Skip → no kill; Revote → "revote";
+//                 tie → "godchoice".
+//   "revote"    → vote among ONLY the tied players. Unique top → eliminated;
+//                 tie again → "godchoice".
+//   "godchoice" → the God decides Skip or Revote.
 
+function aliveVoters(room: Room): Player[] {
+  return alivePlayers(room);
+}
+
+// Players cast a player-vote during the "vote" and "revote" stages.
 export function submitVote(
   room: Room,
   voterId: string,
   targetId: string | null
 ): void {
   if (room.phase !== "day") return;
+  if (room.voteStage !== "vote" && room.voteStage !== "revote") return;
   const voter = get(room, voterId);
   if (!voter || !voter.alive || voter.isHost) return;
+  // During a revote, only the tied players are valid targets.
+  if (
+    room.voteStage === "revote" &&
+    targetId &&
+    !room.tiedCandidates.includes(targetId)
+  )
+    return;
   room.votes[voterId] = targetId;
 }
 
-function aliveVoters(room: Room): Player[] {
-  return alivePlayers(room);
+// Players cast a Skip/Revote vote during the "choice" stage.
+export function submitChoice(
+  room: Room,
+  voterId: string,
+  choice: string
+): void {
+  if (room.phase !== "day" || room.voteStage !== "choice") return;
+  if (choice !== "skip" && choice !== "revote") return;
+  const voter = get(room, voterId);
+  if (!voter || !voter.alive || voter.isHost) return;
+  room.choiceVotes[voterId] = choice;
 }
 
 export function allVotesIn(room: Room): boolean {
-  return aliveVoters(room).every((p) => p.id in room.votes);
+  if (room.phase !== "day") return false;
+  if (room.voteStage === "choice")
+    return aliveVoters(room).every((p) => p.id in room.choiceVotes);
+  if (room.voteStage === "vote" || room.voteStage === "revote")
+    return aliveVoters(room).every((p) => p.id in room.votes);
+  return false; // godchoice waits for the God
 }
 
 export function voteCounts(room: Room): Record<string, number> {
   const counts: Record<string, number> = {};
-  for (const target of Object.values(room.votes)) {
-    if (!target) continue;
-    counts[target] = (counts[target] ?? 0) + 1;
+  if (room.voteStage === "choice") {
+    for (const c of Object.values(room.choiceVotes))
+      counts[c] = (counts[c] ?? 0) + 1;
+  } else {
+    for (const target of Object.values(room.votes)) {
+      if (!target) continue;
+      counts[target] = (counts[target] ?? 0) + 1;
+    }
   }
   return counts;
 }
 
-export function resolveDay(room: Room): void {
-  if (room.phase !== "day") return;
-  const counts = voteCounts(room);
-  let topId: string | null = null;
+// Returns { topIds, topVotes } — topIds has >1 entry when there's a tie.
+function tally(counts: Record<string, number>): { topIds: string[]; topVotes: number } {
   let topVotes = 0;
-  let tie = false;
+  let topIds: string[] = [];
   for (const [id, n] of Object.entries(counts)) {
     if (n > topVotes) {
       topVotes = n;
-      topId = id;
-      tie = false;
+      topIds = [id];
     } else if (n === topVotes) {
-      tie = true;
+      topIds.push(id);
     }
   }
+  return { topIds, topVotes };
+}
 
-  if (!topId || tie || topVotes === 0) {
-    room.log.push({
-      phase: "day",
-      day: room.day,
-      text: "🗳️ The vote was tied or no one was chosen. No one is eliminated.",
-    });
-  } else {
-    const victim = get(room, topId);
-    if (victim) {
+function nextNight(room: Room): void {
+  room.votes = {};
+  room.choiceVotes = {};
+  room.tiedCandidates = [];
+  room.voteStage = "vote";
+  room.day += 1;
+  room.phase = "night";
+  room.privateMessages = {};
+  room.log.push({
+    phase: "night",
+    day: room.day,
+    text: `🌙 Night ${room.day} falls. The town sleeps...`,
+  });
+}
+
+// Eliminate a player (or no one), apply Jester/Lovers, then end or go to night.
+function eliminate(room: Room, victimId: string | null): void {
+  room.votes = {};
+  room.choiceVotes = {};
+  room.tiedCandidates = [];
+  room.voteStage = "vote";
+
+  if (victimId) {
+    const victim = get(room, victimId);
+    if (victim && victim.alive) {
       victim.alive = false;
       const role = getRole(victim.roleId);
       room.log.push({
@@ -567,9 +638,7 @@ export function resolveDay(room: Room): void {
         day: room.day,
         text: `🗳️ The town voted out ${victim.name} — they were the ${role?.emoji ?? ""} ${role?.name ?? "Unknown"}.`,
       });
-      // The Jester wins outright if lynched.
       if (role?.winsIfLynched) {
-        room.votes = {};
         endGame(
           room,
           role.team,
@@ -577,26 +646,99 @@ export function resolveDay(room: Room): void {
         );
         return;
       }
-      // A lynched Lover drags their partner down with them.
       applyLynchLovers(room, victim.id);
     }
-  }
-
-  room.votes = {};
-
-  const winner = checkWinner(room);
-  if (winner) {
-    endGame(room, winner);
   } else {
-    room.day += 1;
-    room.phase = "night";
-    room.privateMessages = {};
     room.log.push({
-      phase: "night",
+      phase: "day",
       day: room.day,
-      text: `🌙 Night ${room.day} falls. The town sleeps...`,
+      text: "🗳️ No one is eliminated.",
     });
   }
+
+  const winner = checkWinner(room);
+  if (winner) endGame(room, winner);
+  else nextNight(room);
+}
+
+// Resolve a player-vote stage ("vote" or "revote").
+export function resolveDay(room: Room): void {
+  if (room.phase !== "day") return;
+  if (room.voteStage !== "vote" && room.voteStage !== "revote") return;
+
+  const { topIds, topVotes } = tally(voteCounts(room));
+
+  if (topVotes === 0 || topIds.length === 0) {
+    // Nobody voted for anyone → no elimination.
+    eliminate(room, null);
+    return;
+  }
+  if (topIds.length === 1) {
+    eliminate(room, topIds[0]);
+    return;
+  }
+
+  // Tie. From a first vote → the town chooses skip/revote; from a revote → God.
+  room.tiedCandidates = topIds;
+  room.votes = {};
+  const names = topIds.map((id) => nameOf(room, id)).join(", ");
+  if (room.voteStage === "vote") {
+    room.voteStage = "choice";
+    room.choiceVotes = {};
+    room.log.push({
+      phase: "day",
+      day: room.day,
+      text: `🤝 Tie between ${names}. The town votes: Skip or Revote?`,
+    });
+  } else {
+    room.voteStage = "godchoice";
+    room.log.push({
+      phase: "day",
+      day: room.day,
+      text: `🤝 Still tied between ${names}. The God will decide: Skip or Revote.`,
+    });
+  }
+}
+
+// Resolve the Skip/Revote choice stage.
+export function resolveChoice(room: Room): void {
+  if (room.phase !== "day" || room.voteStage !== "choice") return;
+  const counts = voteCounts(room);
+  const skip = counts["skip"] ?? 0;
+  const revote = counts["revote"] ?? 0;
+
+  if (skip > revote) {
+    eliminate(room, null);
+  } else if (revote > skip) {
+    startRevote(room);
+  } else {
+    // Tied on skip-vs-revote → the God decides.
+    room.voteStage = "godchoice";
+    room.log.push({
+      phase: "day",
+      day: room.day,
+      text: "🤝 Skip and Revote are tied. The God will decide.",
+    });
+  }
+}
+
+function startRevote(room: Room): void {
+  room.voteStage = "revote";
+  room.votes = {};
+  room.choiceVotes = {};
+  const names = room.tiedCandidates.map((id) => nameOf(room, id)).join(" vs ");
+  room.log.push({
+    phase: "day",
+    day: room.day,
+    text: `🗳️ Revote — the town decides between ${names}.`,
+  });
+}
+
+// The God breaks a deadlock (after a tied choice, or a tied revote).
+export function resolveGodChoice(room: Room, decision: string): void {
+  if (room.phase !== "day" || room.voteStage !== "godchoice") return;
+  if (decision === "revote") startRevote(room);
+  else eliminate(room, null); // "skip"
 }
 
 // If one Lover is lynched, the other dies of heartbreak.
@@ -647,6 +789,9 @@ export function resetToLobby(room: Room): void {
   room.winner = null;
   room.nightActions = {};
   room.votes = {};
+  room.voteStage = "vote";
+  room.tiedCandidates = [];
+  room.choiceVotes = {};
   room.privateMessages = {};
   room.roleState = freshRoleState();
   room.deathGroups = null;
@@ -775,6 +920,7 @@ export function buildView(room: Room, viewerId: string): RoomView {
     privateMessage: room.privateMessages[viewerId] ?? null,
     hostStatus: isHost ? buildHostStatus(room) : null,
     chat: buildChatState(room, viewer),
+    voteStage: room.phase === "day" ? room.voteStage : null,
   };
 }
 
@@ -814,12 +960,37 @@ function buildPrompt(room: Room, viewer: Player): ActionPrompt | null {
   }
 
   if (room.phase === "day") {
-    const targets = alivePlayers(room)
-      .filter((p) => p.id !== viewer.id)
-      .map((p) => p.id);
+    if (room.voteStage === "godchoice") return null; // waiting for the God
+
+    if (room.voteStage === "choice") {
+      const names = room.tiedCandidates.map((id) => nameOf(room, id)).join(" & ");
+      return {
+        kind: "choice",
+        text: `Tie between ${names}. Skip the vote, or revote between them?`,
+        roleId: null,
+        targets: [],
+        choices: [
+          { id: "skip", label: "⏭️ Skip (no elimination)" },
+          { id: "revote", label: "🔁 Revote" },
+        ],
+        selectCount: 1,
+        canSkip: false,
+        submitted: viewer.id in room.choiceVotes,
+      };
+    }
+
+    // "vote" (everyone) or "revote" (only the tied players are options).
+    const pool =
+      room.voteStage === "revote"
+        ? alivePlayers(room).filter((p) => room.tiedCandidates.includes(p.id))
+        : alivePlayers(room);
+    const targets = pool.filter((p) => p.id !== viewer.id).map((p) => p.id);
     return {
       kind: "vote",
-      text: "Vote to eliminate a suspect (or skip).",
+      text:
+        room.voteStage === "revote"
+          ? "Revote — choose between the tied players (or skip)."
+          : "Vote to eliminate a suspect (or skip).",
       roleId: null,
       targets,
       selectCount: 1,
@@ -843,7 +1014,11 @@ function buildHostStatus(room: Room): HostStatus {
   }
   if (room.phase === "day") {
     const voters = aliveVoters(room);
-    const acted = voters.filter((p) => p.id in room.votes).length;
+    if (room.voteStage === "godchoice")
+      return { acted: 0, pending: 0, voteCounts: voteCounts(room) };
+    const acted = voters.filter((p) =>
+      room.voteStage === "choice" ? p.id in room.choiceVotes : p.id in room.votes
+    ).length;
     return { acted, pending: voters.length, voteCounts: voteCounts(room) };
   }
   return { acted: 0, pending: 0, voteCounts: {} };

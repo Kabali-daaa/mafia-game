@@ -52,7 +52,9 @@
       "Bash(npx --yes vercel@latest --prod --yes)",
       "Bash(git commit -q -m 'Ignore .vercel project link folder *)",
       "Bash(grep -iE \"\\\\.env\\\\.local$|service.*\\\\.json|adminsdk\")",
-      "Bash(git commit -q -m 'Robust reconnect + rejoin-by-name, hide-role toggle, dramatic role reveal *)"
+      "Bash(git commit -q -m 'Robust reconnect + rejoin-by-name, hide-role toggle, dramatic role reveal *)",
+      "Bash(git commit -q -m 'README: merge Vigilante into the Psycho Killer row \\(Killer → Town\\) *)",
+      "Bash(git commit -q -m 'Day voting: tiebreak state machine \\(choice → revote / God decides\\) *)"
     ]
   }
 }
