@@ -487,6 +487,54 @@ export function resolveNight(room: Room): void {
   finalizeNight(room, groups);
 }
 
+const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+// Flavourful morning narration — never reveals roles, just who fell and "how".
+function narrateMorning(dead: string[]): string {
+  if (dead.length === 0) {
+    return pick([
+      "☀️ Morning breaks. Astonishingly, everyone made it through the night.",
+      "☀️ Dawn arrives quietly — not a single soul was lost.",
+      "☀️ The sun rises on an empty grave. No one died last night.",
+      "☀️ A peaceful night, for once. Everyone is accounted for.",
+    ]);
+  }
+  // One cause per victim, picked at random (no role hints).
+  const causes = [
+    "was found poisoned",
+    "was stabbed in the dark",
+    "was strangled in their sleep",
+    "never woke up",
+    "was found cold and lifeless",
+    "vanished, leaving only a pool of blood",
+    "was discovered slumped at their door",
+    "drew their last breath before dawn",
+    "was found floating in the well",
+    "met a grisly end",
+  ];
+  // Pick distinct causes for the victims.
+  const pool = [...causes];
+  const lines = dead.map((name) => {
+    const i = Math.floor(Math.random() * pool.length);
+    const cause = pool.splice(i, 1)[0] ?? pick(causes);
+    return `${name} ${cause}`;
+  });
+
+  if (dead.length === 1) {
+    return pick([
+      `☀️ Morning breaks. ${lines[0]}.`,
+      `☀️ The town wakes in horror — ${lines[0]}.`,
+      `☀️ As the sun rises, a body is found: ${lines[0]}.`,
+    ]);
+  }
+  const opener = pick([
+    `☀️ A bloody night. ${dead.length} are gone:`,
+    `☀️ Morning breaks to grim news — ${dead.length} souls fell:`,
+    `☀️ The town counts its dead this morning:`,
+  ]);
+  return `${opener} ${lines.join("; ")}.`;
+}
+
 // Apply the night's death groups (sparing the one the Witch revived, whole) and
 // open the day. (Anyone the Doctor or Witch protected was already removed from
 // the death set during resolution, so they simply aren't here.)
@@ -510,21 +558,11 @@ function finalizeNight(room: Room, groups: DeathGroup[]): void {
   room.deathGroups = null;
   room.nightActions = {};
 
-  if (dead.length === 0) {
-    room.log.push({
-      phase: "day",
-      day: room.day,
-      text: "☀️ Morning breaks. No one died last night.",
-    });
-  } else {
-    room.log.push({
-      phase: "day",
-      day: room.day,
-      text: `☀️ Morning breaks. ${dead.join(" and ")} ${
-        dead.length > 1 ? "were" : "was"
-      } found dead.`,
-    });
-  }
+  room.log.push({
+    phase: "day",
+    day: room.day,
+    text: narrateMorning(dead),
+  });
 
   const winner = checkWinner(room);
   if (winner) endGame(room, winner);
@@ -801,6 +839,19 @@ function endGame(room: Room, winner: Team, message?: string): void {
         ? "💀 The Killers win! They control the town."
         : "🤡 The Neutral player wins!");
   room.log.push({ phase: "ended", day: room.day, text });
+
+  // A closing line for the end-of-game story.
+  const survivors = alivePlayers(room).map((p) => p.name);
+  const closer =
+    winner === "town"
+      ? "🌅 And so the town, battered but unbroken, finally slept soundly."
+      : winner === "mafia"
+        ? "🌑 The town never saw the dawn — the Killers had won."
+        : "🎭 The curtain fell on the strangest victory of all.";
+  const roll = survivors.length
+    ? ` Left standing: ${survivors.join(", ")}.`
+    : " Not a single soul remained.";
+  room.log.push({ phase: "ended", day: room.day, text: closer + roll });
 }
 
 export function resetToLobby(room: Room): void {

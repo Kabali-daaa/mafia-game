@@ -61,7 +61,8 @@ On the last role the God taps **Resolve night** and everything is worked out
 together (saves cancel kills, the Item's curse and Lovers' fate apply, etc.).
 
 #### ☀️ Day
-Morning is announced (who died overnight). Players **discuss in the Town chat**
+Morning is announced with a bit of flavour — who died overnight and *how* (poisoned,
+stabbed, strangled…), but **never their role**. Players **discuss in the Town chat**
 (anonymously) and any private night results appear (e.g. the Police's finding).
 Then everyone **votes** to eliminate a suspect.
 
@@ -150,6 +151,13 @@ If two or more players tie for the most votes:
 
 ## Privacy & quality-of-life
 
+- **Join by link or QR:** the lobby shows a **QR code** and a **share link**
+  (`/?room=CODE`) — scan or tap and the room code is pre-filled, no typing.
+- **In-app help:** a **?** button in the header opens **Roles & Rules** any time.
+- **Creative death reveals:** each morning narrates who fell and *how* (poisoned,
+  stabbed, drowned…) with variety — without ever leaking their role.
+- **Story recap:** when the game ends, the whole match is replayed back as a
+  numbered **story** of everything that happened.
 - **Hide your role:** your role is **hidden by default** in the header (tap to
   reveal, tap again to hide) — so a glance at your phone gives nothing away.
 - **Dramatic reveal:** when you're dealt a role (or it changes), a full-screen
@@ -159,6 +167,8 @@ If two or more players tie for the most votes:
   mid-game) — enter the **same name** to reclaim your seat, role, and chat history.
 - **Responsive:** bottom tab bar on mobile, left-hand menu on desktop —
   Game / Chat / Players / Story.
+- **Lean on Firestore:** unchanged per-player views are skipped on each write
+  (roughly **halving writes**), and abandoned rooms **auto-expire after 12h**.
 
 ---
 

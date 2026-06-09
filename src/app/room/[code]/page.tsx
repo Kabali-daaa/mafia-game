@@ -15,7 +15,14 @@ import {
   sendAction,
   subscribeToView,
 } from "@/lib/game";
-import { ASSIGNABLE_ROLES, getRole, type RoleDef, teamLabel } from "@/game/roles";
+import { QRCodeSVG } from "qrcode.react";
+import {
+  ASSIGNABLE_ROLES,
+  ROLE_LIST,
+  getRole,
+  type RoleDef,
+  teamLabel,
+} from "@/game/roles";
 import type { ChatLine, PublicPlayer, RoomView } from "@/lib/types";
 
 export default function RoomPage() {
@@ -400,6 +407,7 @@ function BottomNav({
 function Header({ view }: { view: RoomView }) {
   const role = getRole(view.you.roleId);
   const { visible, toggle } = useContext(RoleViz);
+  const [showHelp, setShowHelp] = useState(false);
   const phase: Record<string, { label: string; cls: string }> = {
     lobby: { label: "Lobby", cls: "bg-white/10 text-white/80" },
     night: { label: `🌙 Night ${view.day}`, cls: "bg-indigo-500/25 text-indigo-200" },
@@ -424,6 +432,14 @@ function Header({ view }: { view: RoomView }) {
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          onClick={() => setShowHelp(true)}
+          title="Roles & rules"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white/70 transition hover:bg-white/20"
+        >
+          ?
+        </button>
+        {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
         <span className={`rounded-full px-3 py-1.5 text-sm font-semibold ${p.cls}`}>
           {p.label}
         </span>
@@ -457,42 +473,192 @@ function Header({ view }: { view: RoomView }) {
   );
 }
 
+// In-app roles & rules reference, openable any time from the header.
+function HelpModal({ onClose }: { onClose: () => void }) {
+  const [tab, setTab] = useState<"how" | "roles">("how");
+  const byTeam = (team: string) =>
+    ROLE_LIST.filter((r) => r.team === team).sort((a, b) => a.name.localeCompare(b.name));
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl bg-[#15151d] ring-1 ring-white/10 sm:rounded-3xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-white/10 p-4">
+          <h2 className="text-lg font-extrabold">📖 How to play</h2>
+          <button
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg transition hover:bg-white/20"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="flex gap-1 p-3">
+          {(["how", "roles"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex-1 rounded-2xl px-4 py-2 text-sm font-bold transition ${
+                tab === t
+                  ? "bg-violet-500/25 text-violet-200 ring-1 ring-violet-400/30"
+                  : "text-white/55 hover:bg-white/5"
+              }`}
+            >
+              {t === "how" ? "Rules" : "Roles"}
+            </button>
+          ))}
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 pt-1 text-sm text-white/75">
+          {tab === "how" ? (
+            <>
+              <div>
+                <h3 className="font-bold text-white">🎯 Goal</h3>
+                <ul className="mt-1 space-y-1">
+                  <li>🔵 <b>Town</b> wins when every Killer is eliminated.</li>
+                  <li>🔴 <b>Killers</b> win when they equal or outnumber the rest.</li>
+                  <li>🟡 <b>Jester</b> wins instantly if voted out by the town.</li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="font-bold text-white">🌙 Night</h3>
+                <p className="mt-1">
+                  The God calls each role-group in turn — Cupid, Killers, Psycho,
+                  Police, Doctor, Item, then the Witch. Only the called role acts;
+                  everyone else waits. The Killers make just <b>one kill</b> per night
+                  no matter how many there are.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-bold text-white">☀️ Day</h3>
+                <p className="mt-1">
+                  Morning reveals who died (never their role). The town discusses in
+                  chat, then votes out one suspect — whose role <b>is</b> revealed. Ties
+                  go to a Skip-or-Revote choice; a deadlock is broken by the God.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-bold text-white">💬 Chat & privacy</h3>
+                <p className="mt-1">
+                  Town chat is anonymous. The Killers have a private room. Your role is
+                  hidden by default — tap the chip in the header to peek.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              {([
+                ["mafia", "🔴 Killers' side"],
+                ["town", "🔵 Town"],
+                ["neutral", "🟡 Neutral"],
+              ] as const).map(([team, label]) => (
+                <div key={team}>
+                  <h3 className="mb-1.5 font-bold text-white">{label}</h3>
+                  <ul className="space-y-2">
+                    {byTeam(team).map((r) => (
+                      <li key={r.id} className="flex gap-2.5 rounded-2xl bg-white/[0.04] p-2.5">
+                        <span className="text-xl">{r.emoji}</span>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-white/90">{r.name}</div>
+                          <div className="text-xs text-white/55">{r.description}</div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* -------------------------------- lobby ---------------------------------- */
+
+// Share the room: a scannable QR + a copyable join link + the bare code.
+function SharePanel({ code }: { code: string }) {
+  const [joinUrl, setJoinUrl] = useState("");
+  const [copied, setCopied] = useState<"link" | "code" | null>(null);
+
+  useEffect(() => {
+    setJoinUrl(`${window.location.origin}/?room=${code}`);
+  }, [code]);
+
+  const copy = (what: "link" | "code", value: string) => {
+    navigator.clipboard?.writeText(value).then(() => {
+      setCopied(what);
+      setTimeout(() => setCopied(null), 1500);
+    });
+  };
+
+  const share = () => {
+    if (navigator.share && joinUrl) {
+      navigator
+        .share({ title: "Join my Mafia game", text: `Room code: ${code}`, url: joinUrl })
+        .catch(() => {});
+    } else {
+      copy("link", joinUrl);
+    }
+  };
+
+  return (
+    <div className="mt-4 flex flex-col items-center gap-4 rounded-2xl bg-white/[0.04] p-4 ring-1 ring-white/10 sm:flex-row sm:items-center">
+      {joinUrl && (
+        <div className="shrink-0 rounded-2xl bg-white p-2.5">
+          <QRCodeSVG value={joinUrl} size={104} level="M" />
+        </div>
+      )}
+      <div className="min-w-0 flex-1 text-center sm:text-left">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
+          Scan to join — or share the link
+        </div>
+        <div className="mt-1 text-2xl font-extrabold tracking-[0.3em]">{code}</div>
+        <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
+          <button
+            onClick={share}
+            className="rounded-2xl bg-cyan-400/15 px-4 py-2 text-sm font-bold text-cyan-200 ring-1 ring-cyan-400/30 transition hover:bg-cyan-400/25"
+          >
+            {copied === "link" ? "Link copied!" : "🔗 Share link"}
+          </button>
+          <button
+            onClick={() => copy("code", code)}
+            className="rounded-2xl bg-white/10 px-4 py-2 text-sm font-bold text-white/80 ring-1 ring-white/15 transition hover:bg-white/20"
+          >
+            {copied === "code" ? "Copied!" : "Copy code"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Lobby({ view }: { view: RoomView }) {
   const isHost = view.you.isHost;
   const playerCount = [view.you, ...view.players].filter((p) => !p.isHost).length;
   const total = Object.values(view.config).reduce((a, b) => a + b, 0);
-  const [copied, setCopied] = useState(false);
 
   const setCount = (roleId: string, n: number) =>
     sendAction(view.code, "setConfig", {
       config: { ...view.config, [roleId]: Math.max(0, n) },
     });
 
-  const copy = () => {
-    navigator.clipboard?.writeText(view.code).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-
   return (
     <Card>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold">Lobby</h2>
-          <p className="mt-0.5 text-sm text-white/55">
-            {playerCount} player{playerCount === 1 ? "" : "s"} joined (excluding the host).
-          </p>
-        </div>
-        <button
-          onClick={copy}
-          className="rounded-2xl bg-cyan-400/15 px-4 py-2 text-sm font-bold text-cyan-200 ring-1 ring-cyan-400/30 transition hover:bg-cyan-400/25"
-        >
-          {copied ? "Copied!" : `Share ${view.code}`}
-        </button>
+      <div>
+        <h2 className="text-xl font-extrabold">Lobby</h2>
+        <p className="mt-0.5 text-sm text-white/55">
+          {playerCount} player{playerCount === 1 ? "" : "s"} joined (excluding the host).
+        </p>
       </div>
+
+      <SharePanel code={view.code} />
 
       {isHost ? (
         <div className="mt-5 space-y-2.5">
@@ -932,20 +1098,39 @@ function Ended({ view }: { view: RoomView }) {
       : won === "mafia"
         ? { emoji: "💀", title: "Killers win!", cls: "from-rose-500/30 to-red-500/20" }
         : { emoji: "🤡", title: "Neutral wins!", cls: "from-amber-500/30 to-orange-500/20" };
+  // The whole game told back as a story, in order.
+  const story = view.log.filter((e) => e.text.trim().length > 0);
+
   return (
-    <Card className={`bg-gradient-to-br ${conf.cls} text-center`}>
-      <div className="text-5xl">{conf.emoji}</div>
-      <h2 className="mt-2 text-2xl font-extrabold">{conf.title}</h2>
-      <p className="mt-1 text-white/65">Final roles are revealed in the roster.</p>
-      {view.you.isHost && (
-        <button
-          onClick={() => sendAction(view.code, "reset")}
-          className="mt-4 rounded-2xl bg-white/15 px-6 py-3 font-bold ring-1 ring-white/20 transition hover:bg-white/25"
-        >
-          Play again
-        </button>
-      )}
-    </Card>
+    <div className="space-y-5">
+      <Card className={`bg-gradient-to-br ${conf.cls} text-center`}>
+        <div className="text-5xl">{conf.emoji}</div>
+        <h2 className="mt-2 text-2xl font-extrabold">{conf.title}</h2>
+        <p className="mt-1 text-white/65">Final roles are revealed in the roster.</p>
+        {view.you.isHost && (
+          <button
+            onClick={() => sendAction(view.code, "reset")}
+            className="mt-4 rounded-2xl bg-white/15 px-6 py-3 font-bold ring-1 ring-white/20 transition hover:bg-white/25"
+          >
+            Play again
+          </button>
+        )}
+      </Card>
+
+      <Card>
+        <SectionTitle>📖 How it all unfolded</SectionTitle>
+        <ol className="mt-3 space-y-2.5">
+          {story.map((e, i) => (
+            <li key={i} className="flex gap-3">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-bold text-white/50">
+                {i + 1}
+              </span>
+              <p className="text-sm leading-relaxed text-white/80">{e.text}</p>
+            </li>
+          ))}
+        </ol>
+      </Card>
+    </div>
   );
 }
 
