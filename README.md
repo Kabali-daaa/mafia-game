@@ -20,6 +20,7 @@ Two main sides are fighting (plus a lone trickster):
 | 🔵 **Town** | **every Killer is eliminated** |
 | 🔴 **Killers** | the Killers **equal or outnumber** everyone else still alive |
 | 🟡 **Jester** (neutral) | the town **votes the Jester out** |
+| 💞 **Lovers** (cross-team couple) | the two linked Lovers are the **last two players alive** |
 
 The Town finds and votes out the Killers by day; the Killers quietly pick off the
 Town by night. The Jester plays for itself and wins only by getting lynched.
@@ -43,15 +44,22 @@ elimination**. The first side to meet its condition wins immediately.
   the **town votes them out** during the day. (Being killed at *night* does **not**
   win it for the Jester — it must be the day vote.) A Jester win ends the game even if
   a Town or Killer condition would also be met that turn.
+- 💞 **Lovers victory — last two standing.** If Cupid links two players from **opposite
+  sides** (e.g. a Police officer and a Killer), their bond overrides their teams: they
+  win **together** the moment the **only two players left alive are the couple**. This
+  is checked *before* the Town/Killer conditions, so a final Cop-lover + Killer-lover
+  pair is a **Lovers win**, not a Killer win. (Lovers on the *same* side don't form a
+  separate couple — they just resolve as their shared team.)
 
 ### Things that affect who wins
 
 - **Surviving neutrals delay a Killer win.** A living Jester counts as one of
   "everyone else," so the Killers need one more kill to reach parity while the Jester
   is still around.
-- **Lovers don't win as a pair** — they simply die together (a night kill or a lynch
-  of one kills the other of heartbreak). Whoever's side condition is met still wins;
-  a double-death can be the thing that *triggers* a Town or Killer win.
+- **Lovers die together** — a night kill or a lynch of one Lover kills the other of
+  heartbreak. If they're on the **same** side they don't form a separate couple (their
+  shared team's condition decides); if they're **cross-team** they win as a couple by
+  being the last two alive (see the Lovers victory above).
 - **A transformed Psycho counts for the Town.** Once the Doctor heals the Psycho
   Killer and it becomes a Vigilante, it no longer counts as a Killer — that alone can
   hand the Town the win if it was the last Killer-side player.

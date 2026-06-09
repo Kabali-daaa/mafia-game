@@ -1140,7 +1140,9 @@ function Ended({ view }: { view: RoomView }) {
       ? { emoji: "🎉", title: "Town wins!", cls: "from-steel/25 to-steel-deep/30" }
       : won === "mafia"
         ? { emoji: "💀", title: "Killers win!", cls: "from-blood/30 to-blood-deep/30" }
-        : { emoji: "🤡", title: "Neutral wins!", cls: "from-gold/25 to-gold-deep/25" };
+        : won === "lovers"
+          ? { emoji: "💞", title: "Lovers win!", cls: "from-blood/25 to-gold/20" }
+          : { emoji: "🤡", title: "Neutral wins!", cls: "from-gold/25 to-gold-deep/25" };
   // The whole game told back as a story, in order.
   const story = view.log.filter((e) => e.text.trim().length > 0);
 
