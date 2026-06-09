@@ -24,6 +24,40 @@ Two main sides are fighting (plus a lone trickster):
 The Town finds and votes out the Killers by day; the Killers quietly pick off the
 Town by night. The Jester plays for itself and wins only by getting lynched.
 
+### Every winning scenario in detail
+
+The game checks for a winner **after each night is resolved** and **after every day
+elimination**. The first side to meet its condition wins immediately.
+
+- 🔵 **Town victory — all Killers gone.** The moment the number of living
+  Killer-side players (Killer + Godfather + Psycho) hits **zero**, the Town wins.
+  This can happen by a **day lynch** (voting out the last Killer) or at **night**
+  (e.g. the Vigilante shoots the last Killer, or a Killer is caught in the Item's /
+  Lovers' linked fate).
+- 🔴 **Killers victory — parity.** As soon as the living Killers **equal or
+  outnumber** everyone else alive (`killers ≥ everyone-else`), the Killers win — they
+  can no longer be out-voted. This usually triggers at **night** after a kill brings
+  the town down to the Killers' level, but it can also trigger **by day** if a lynch
+  removes a townsperson and tips the balance.
+- 🟡 **Jester victory — lynched.** The Jester wins **instantly and alone** the moment
+  the **town votes them out** during the day. (Being killed at *night* does **not**
+  win it for the Jester — it must be the day vote.) A Jester win ends the game even if
+  a Town or Killer condition would also be met that turn.
+
+### Things that affect who wins
+
+- **Surviving neutrals delay a Killer win.** A living Jester counts as one of
+  "everyone else," so the Killers need one more kill to reach parity while the Jester
+  is still around.
+- **Lovers don't win as a pair** — they simply die together (a night kill or a lynch
+  of one kills the other of heartbreak). Whoever's side condition is met still wins;
+  a double-death can be the thing that *triggers* a Town or Killer win.
+- **A transformed Psycho counts for the Town.** Once the Doctor heals the Psycho
+  Killer and it becomes a Vigilante, it no longer counts as a Killer — that alone can
+  hand the Town the win if it was the last Killer-side player.
+- **No one is left?** With the win checked after every death, the parity rule means
+  the Killers clinch it before the town could ever be wiped to literally zero.
+
 ---
 
 ## How to play
@@ -182,6 +216,17 @@ npm run dev
 
 Open http://localhost:3000. To test multiple players on one machine, open several
 incognito windows (each needs its own browser identity).
+
+### Tests
+
+```bash
+npm test     # fast in-memory unit tests for the game engine (no Firebase)
+```
+
+`src/game/engine.test.ts` exercises the rules — dealing, the Killers' single kill,
+Doctor/Witch saves, Police checks, Lovers, the Item's curse, the Psycho→Vigilante
+transform, Panchayat immunity, voting/ties, and **every win condition** — directly
+over an in-memory `Room`, so it runs in milliseconds and never touches Firestore.
 
 ## Architecture
 
