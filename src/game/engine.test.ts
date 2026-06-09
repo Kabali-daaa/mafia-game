@@ -339,6 +339,15 @@ test("a day banishment does NOT reveal the victim's role (full mystery)", () => 
   assert.ok(!/villager/i.test(banishLog!.text), "the banished player's role is NOT named");
 });
 
+test("NO role word ever appears in the in-game story — only at game end", () => {
+  const room = setup({ K: "killer", Cup: "cupid", I: "item", V1: "villager", V2: "villager", V3: "villager", V4: "villager" });
+  runNight(room, { Cup: ["V1", "V2"], K: ["V3"], I: ["K"] }); // V3 killed; the Item dies visiting a Killer
+  dayVote(room, { K: "V1", Cup: "V1", V1: "V1", V2: "V1", V4: "V1" }); // banish V1 (a Lover) → V2 dies of the bond
+  const ROLE = /\b(Killer|Godfather|Psycho|Police|Doctor|Cupid|Panchayat|Item|Witch|Jester|Villager|Vigilante|Lover)\b/i;
+  for (const e of room.log.filter((e) => e.phase !== "ended"))
+    assert.ok(!ROLE.test(e.text), `role leaked mid-game: "${e.text}"`);
+});
+
 /* ----------------------------- AFK / God skip ---------------------------- */
 
 test("the God can skip a stalling voter to complete the day vote", () => {
