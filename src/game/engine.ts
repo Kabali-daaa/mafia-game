@@ -490,28 +490,40 @@ export function resolveNight(room: Room): void {
 
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
-// Flavourful morning narration — never reveals roles, just who fell and "how".
+// Flavourful, spine-chilling morning narration. CRITICAL: it must NEVER hint at the
+// victim's role — every line is a generic gruesome fate that fits any player.
 function narrateMorning(dead: string[]): string {
   if (dead.length === 0) {
     return pick([
-      "☀️ Morning breaks. Astonishingly, everyone made it through the night.",
-      "☀️ Dawn arrives quietly — not a single soul was lost.",
-      "☀️ The sun rises on an empty grave. No one died last night.",
-      "☀️ A peaceful night, for once. Everyone is accounted for.",
+      "🌅 Dawn breaks grey and cold. Somehow, everyone survived the night — though no one slept.",
+      "🕯️ The night passed without a single scream. Everyone is still breathing… for now.",
+      "🌫️ The fog lifts on an empty graveyard. Against all odds, no one died.",
+      "🌅 No bodies this morning. The village holds its breath, waiting for the next.",
+      "🌙 The dark spared them all tonight. It rarely does twice.",
     ]);
   }
-  // One cause per victim, picked at random (no role hints).
+  // One distinct cause per victim — all role-agnostic so nothing is given away.
   const causes = [
-    "was found poisoned",
-    "was stabbed in the dark",
-    "was strangled in their sleep",
-    "never woke up",
-    "was found cold and lifeless",
-    "vanished, leaving only a pool of blood",
-    "was discovered slumped at their door",
-    "drew their last breath before dawn",
-    "was found floating in the well",
-    "met a grisly end",
+    "was found torn apart, scattered across the square",
+    "was drained of every last drop of blood",
+    "was found with eyes frozen wide in terror",
+    "was discovered hanging cold from the old oak",
+    "was gutted and left for the crows",
+    "was clawed to ribbons in the night",
+    "was strangled — the marks still purple on their throat",
+    "was poisoned, froth dried at their lips",
+    "vanished, leaving only a dark, wet stain on the floor",
+    "was dragged from the well, bloated and pale",
+    "was burned down to a blackened husk",
+    "was stabbed so many times the blade snapped",
+    "was found with their heart carved clean out",
+    "screamed once before dawn — then only bones were left",
+    "was found smiling, throat cut ear to ear",
+    "rotted overnight, as if months had passed in hours",
+    "was dragged into the dark, nails scraping the floorboards",
+    "was left bled white, two neat punctures at the neck",
+    "was found kneeling in prayer — and missing their head",
+    "was crushed by something no one will name",
   ];
   // Pick distinct causes for the victims.
   const pool = [...causes];
@@ -523,15 +535,18 @@ function narrateMorning(dead: string[]): string {
 
   if (dead.length === 1) {
     return pick([
-      `☀️ Morning breaks. ${lines[0]}.`,
-      `☀️ The town wakes in horror — ${lines[0]}.`,
-      `☀️ As the sun rises, a body is found: ${lines[0]}.`,
+      `🌅 Dawn comes too late — ${lines[0]}.`,
+      `🩸 The village wakes to screaming: ${lines[0]}.`,
+      `🌫️ As the fog clears, a horror waits in the square — ${lines[0]}.`,
+      `💀 Morning. ${lines[0]}. No one saw a thing.`,
+      `🌙 The night took one of them: ${lines[0]}.`,
     ]);
   }
   const opener = pick([
-    `☀️ A bloody night. ${dead.length} are gone:`,
-    `☀️ Morning breaks to grim news — ${dead.length} souls fell:`,
-    `☀️ The town counts its dead this morning:`,
+    `🩸 A night of carnage — ${dead.length} are gone:`,
+    `💀 The dawn reveals a massacre; ${dead.length} bodies:`,
+    `🌫️ ${dead.length} did not live to see the morning:`,
+    `🕯️ The village counts its dead, and weeps:`,
   ]);
   return `${opener} ${lines.join("; ")}.`;
 }
@@ -682,10 +697,16 @@ function eliminate(room: Room, victimId: string | null): void {
     if (victim && victim.alive) {
       victim.alive = false;
       const role = getRole(victim.roleId);
+      // Full mystery: the banished player's role is NEVER revealed mid-game (all
+      // roles are shown only on the end-game screen). The town leaves none the wiser.
       room.log.push({
         phase: "day",
         day: room.day,
-        text: `🗳️ The town banished ${victim.name} from the village — they were the ${role?.emoji ?? ""} ${role?.name ?? "Unknown"}.`,
+        text: pick([
+          `🗳️ The town drives ${victim.name} out into the dark — whatever they truly were goes with them.`,
+          `🗳️ ${victim.name} is dragged to the village gates and cast out, secrets and all.`,
+          `🗳️ Banished. ${victim.name} is run out of the village, and no one will ever know for sure.`,
+        ]),
       });
       if (role?.winsIfLynched) {
         endGame(
@@ -800,7 +821,8 @@ export function resolveGodChoice(room: Room, decision: string): void {
   else eliminate(room, null); // "skip"
 }
 
-// If one Lover is lynched, the other dies of heartbreak.
+// If one Lover is banished, the other dies too — narrated WITHOUT revealing the
+// bond (no "Lover" wording), so nobody's role/status is given away.
 function applyLynchLovers(room: Room, deadId: string): void {
   const lovers = room.roleState.lovers;
   if (!lovers) return;
@@ -813,7 +835,11 @@ function applyLynchLovers(room: Room, deadId: string): void {
     room.log.push({
       phase: "day",
       day: room.day,
-      text: `💔 ${p.name} died of heartbreak, having lost their Lover.`,
+      text: pick([
+        `🩸 Moments later, ${p.name} was found lifeless too — no wound, no reason anyone dares name.`,
+        `💀 As the village turned away, ${p.name} simply collapsed, dead before they hit the ground.`,
+        `🌫️ Then ${p.name} dropped without a sound — as if the dark had claimed them in the same breath.`,
+      ]),
     });
   }
 }
