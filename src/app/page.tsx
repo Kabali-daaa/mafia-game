@@ -13,6 +13,10 @@ export default function Home() {
 
   useEffect(() => {
     setName(recallName());
+    // Pre-fill the code from a shared join link (?room=ABCD).
+    const params = new URLSearchParams(window.location.search);
+    const room = params.get("room");
+    if (room) setCode(room.toUpperCase().slice(0, 4));
   }, []);
 
   const create = async () => {
