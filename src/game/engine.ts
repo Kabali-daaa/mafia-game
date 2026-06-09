@@ -561,6 +561,36 @@ function narrateMorning(dead: string[]): string {
       `🕯️ A scream, then silence. By morning, ${lines[0]}.`,
     ]);
   }
+  // Two formats for a multi-victim morning, chosen at random:
+  // (a) COLLECTIVE — all names together under one shared, gruesome fate
+  //     ("Karthi, Kabali and Seyon were found …"), or
+  // (b) PER-VICTIM — each name with its own distinct cause.
+  // Either way, no role is hinted — lovers/item deaths just blend into the group.
+  const nameList = dead.length === 2
+    ? `${dead[0]} and ${dead[1]}`
+    : `${dead.slice(0, -1).join(", ")} and ${dead[dead.length - 1]}`;
+
+  if (Math.floor(Math.random() * 2) === 0) {
+    const fate = pick([
+      "were found in a tangled heap, torn apart",
+      "were dragged into the woods — only the screams came back",
+      "were left in a ring of black candles, all gone cold",
+      "were drained pale, not a drop of blood left between them",
+      "were strung up along the fence like a warning",
+      "lie side by side, throats opened by the same blade",
+      "were burned together where they slept",
+      "were found with their eyes gone and mouths frozen mid-scream",
+      "were swallowed by the dark and spat back out in pieces",
+      "were stacked at the well, cold and broken",
+    ]);
+    return pick([
+      `🩸 A night of slaughter — ${nameList} ${fate}.`,
+      `💀 The village wakes to a nightmare: ${nameList} ${fate}.`,
+      `🌫️ ${nameList} ${fate}. The dawn brings only grief.`,
+      `🕯️ ${nameList} ${fate} — and the bells toll on and on.`,
+    ]);
+  }
+
   const opener = pick([
     `🩸 A night of carnage — ${dead.length} are gone:`,
     `💀 The dawn reveals a massacre; ${dead.length} bodies:`,
