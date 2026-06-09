@@ -4,7 +4,7 @@ A web-based game of **Mafia** (a.k.a. Werewolf) with a **God / narrator** who ru
 the game and **players** who join from their own phones with a room code. Roles are
 secret, the town argues by day, and the Killers strike by night.
 
-**▶️ Play:** https://mafia-game-gold.vercel.app
+**▶️ Play:** https://game-mafia.vercel.app
 
 Built with **Next.js + Firebase Firestore** — game state lives in Firestore and
 pushes live updates to every player, so it runs fully on free serverless hosting.
