@@ -439,13 +439,29 @@ section("Tiebreak — revote that ties AGAIN goes to the God");
   A((await view(code, host)).voteStage === "godchoice", "a re-tied revote escalates to the God");
 }
 
-section("Multiple Killers each strike (two deaths in one night)");
+section("Multiple Killers → only ONE shared kill per night (plurality)");
 {
   const { code, host, roles } = await setup("m12_", { killer: 2, villager: 3 });
   const [k1, k2] = roles.killer, v = roles.villager;
+  // The two Killers pick DIFFERENT targets; only the plurality dies. They agree
+  // on v0 (both pick v0 here) so exactly v0 dies and v1 lives.
+  await runNight(code, host, { [k1]: [v[0]], [k2]: [v[0]] });
+  let hv = await view(code, host);
+  A(alive(hv, v[0]) === false, "the agreed target died");
+  A(alive(hv, v[1]) === true, "no second kill (v1 survived)");
+  const deadCount = [hv.you, ...hv.players].filter((p) => !p.isHost && !p.alive).length;
+  A(deadCount === 1, "exactly ONE death from the Killers tonight");
+}
+
+section("Killers who split their vote still get only ONE kill");
+{
+  const { code, host, roles } = await setup("m12b_", { killer: 2, villager: 3 });
+  const [k1, k2] = roles.killer, v = roles.villager;
+  // Split: k1→v0, k2→v1 → tie → exactly one of them dies (random), never both.
   await runNight(code, host, { [k1]: [v[0]], [k2]: [v[1]] });
   const hv = await view(code, host);
-  A(alive(hv, v[0]) === false && alive(hv, v[1]) === false, "both Killers' victims died");
+  const deaths = [v[0], v[1]].filter((id) => alive(hv, id) === false).length;
+  A(deaths === 1, "a split Killer vote still kills exactly one (not both)");
 }
 
 // ============================ EVEN MORE DETAILS ============================

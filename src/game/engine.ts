@@ -303,6 +303,25 @@ function buildNightContext(room: Room): NightContext {
   };
 }
 
+// The Killers (Killer + Godfather) act as ONE squad: however many there are, they
+// make a single kill per night — the most-chosen target (ties broken at random).
+// (The Psycho Killer is a lone wolf and kills separately.)
+function resolveKillers(room: Room, ctx: NightContext): void {
+  const killers = alivePlayers(room).filter((p) =>
+    ["killer", "godfather"].includes(p.roleId ?? "")
+  );
+  const counts: Record<string, number> = {};
+  for (const k of killers) {
+    const pick = room.nightActions[k.id]?.[0];
+    if (pick) counts[pick] = (counts[pick] ?? 0) + 1;
+  }
+  const picks = Object.keys(counts);
+  if (picks.length === 0) return; // no one chosen
+  const max = Math.max(...picks.map((id) => counts[id]));
+  const top = picks.filter((id) => counts[id] === max);
+  ctx.markedForDeath.add(top[Math.floor(Math.random() * top.length)]);
+}
+
 // The Police act as one squad: tally every cop's pick, investigate the single
 // most-chosen suspect (ties broken at random), and share the result with all cops.
 function resolvePolice(room: Room, ctx: NightContext): void {
@@ -439,7 +458,8 @@ export function resolveNight(room: Room): void {
     }
   }
 
-  // The Police squad's single shared investigation.
+  // The Killers' single shared kill + the Police squad's single shared check.
+  resolveKillers(room, ctx);
   resolvePolice(room, ctx);
 
   // A Witch who chose to save someone spends one of her two uses.

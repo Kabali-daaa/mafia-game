@@ -89,17 +89,16 @@ export const ROLES: Record<string, RoleDef> = {
     team: "mafia",
     emoji: "🔪",
     killerChat: true,
+    // NOTE: the Killer + Godfather act as ONE squad — engine.ts (resolveKillers)
+    // tallies their picks and makes a single kill per night (plurality), even
+    // with several of them. No per-actor `resolve` here.
     description:
-      "Each night, the Killers choose one player to eliminate. They win when they equal or outnumber everyone else.",
+      "Each night, the Killers together choose ONE player to eliminate. They win when they equal or outnumber everyone else.",
     night: {
       order: 50,
-      prompt: "Choose a player to eliminate tonight.",
+      prompt: "As a team, choose one player to eliminate (the most-chosen one dies).",
       canTargetSelf: false,
       canTargetDead: false,
-    },
-    resolve: (_actorId, targetIds, ctx) => {
-      const t = targetIds[0];
-      if (t) ctx.markedForDeath.add(t);
     },
   },
 
@@ -110,17 +109,14 @@ export const ROLES: Record<string, RoleDef> = {
     apparentTeam: "town", // reads as innocent to the Police
     emoji: "🎩",
     killerChat: true,
+    // Shares the Killers' single nightly kill (see resolveKillers in engine.ts).
     description:
-      "The boss of the Killers. Eliminates a player each night and appears innocent if the Police investigate them.",
+      "The boss of the Killers. Joins their single nightly kill, and appears innocent if the Police investigate them.",
     night: {
       order: 50,
-      prompt: "Choose a player to eliminate tonight.",
+      prompt: "As a team, choose one player to eliminate (the most-chosen one dies).",
       canTargetSelf: false,
       canTargetDead: false,
-    },
-    resolve: (_actorId, targetIds, ctx) => {
-      const t = targetIds[0];
-      if (t) ctx.markedForDeath.add(t);
     },
   },
 
