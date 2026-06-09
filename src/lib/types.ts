@@ -2,6 +2,9 @@
 
 // Internal alignment. "mafia" = the Killers' side; UI labels it "Killers".
 export type Team = "town" | "mafia" | "neutral";
+// The possible game outcomes. "lovers" is a cross-faction Cupid couple who win by
+// being the last two players alive (their bond overrides their original teams).
+export type Winner = Team | "lovers";
 
 // "witch" is a short reactive sub-phase after the night, where the Witch
 // (if any) sees who died and may revive someone before morning is announced.
@@ -44,7 +47,7 @@ export interface RoomView {
   players: PublicPlayer[]; // others, role hidden unless game ended / you are host
   config: RoleConfig;
   log: LogEntry[];
-  winner: Team | null;
+  winner: Winner | null;
   // Per-phase prompts for the receiving player (e.g. "choose who to kill").
   prompt: ActionPrompt | null;
   // Private message just for this player (e.g. detective result).

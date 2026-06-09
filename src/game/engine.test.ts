@@ -234,6 +234,18 @@ test("Lovers die together — lynching one kills the other of heartbreak", () =>
   assert.equal(isAlive(room, "L2"), false, "heartbreak kills the partner");
 });
 
+test("cross-team Lovers (Cop + Killer) win as the last two standing", () => {
+  const room = setup({ Cup: "cupid", Cop: "police", K: "killer", V: "villager" });
+  // Night 1: Cupid links the Cop (town) to the Killer (mafia); the Killer kills Cupid.
+  runNight(room, { Cup: ["Cop", "K"], K: ["Cup"], Cop: ["V"] });
+  assert.equal(room.phase, "day", "3 still alive (Cop, Killer, Villager) — no winner yet");
+  // Day: the last bystander is voted out, leaving only the linked couple.
+  dayVote(room, { Cop: "V", K: "V", V: "Cop" });
+  assert.equal(isAlive(room, "V"), false);
+  assert.equal(room.winner, "lovers", "the cross-team couple win their forbidden victory");
+  assert.equal(room.phase, "ended");
+});
+
 /* --------------------------------- item ---------------------------------- */
 
 test("the Item dies if it spends the night with a Killer", () => {

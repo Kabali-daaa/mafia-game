@@ -14,6 +14,7 @@ import type {
   RoleConfig,
   RoomView,
   Team,
+  Winner,
 } from "@/lib/types";
 import {
   freshRoleState,
@@ -33,7 +34,7 @@ export interface Room {
   players: Player[];
   config: RoleConfig;
   log: LogEntry[];
-  winner: Team | null;
+  winner: Winner | null;
   // Submitted night actions this phase: playerId -> chosen target ids.
   nightActions: Record<string, string[]>;
   // Which night role-group the host is currently calling (index into nightSteps).
@@ -819,8 +820,21 @@ function applyLynchLovers(room: Room, deadId: string): void {
 
 // ---- win conditions ----
 
-export function checkWinner(room: Room): Team | null {
+export function checkWinner(room: Room): Winner | null {
   const living = alivePlayers(room);
+
+  // Cross-faction Lovers (e.g. a Cop linked to a Killer) form their own couple:
+  // if the last two alive ARE the linked Lovers and they're on opposing sides,
+  // their bond wins over both factions. (Same-team lovers fall through to the
+  // normal town/mafia check below, which already resolves correctly.)
+  const lovers = room.roleState.lovers;
+  if (lovers && living.length === 2) {
+    const ids = living.map((p) => p.id);
+    if (ids.includes(lovers[0]) && ids.includes(lovers[1])) {
+      if (teamOf(room, lovers[0]) !== teamOf(room, lovers[1])) return "lovers";
+    }
+  }
+
   const killers = living.filter((p) => teamOf(room, p.id) === "mafia").length;
   const others = living.length - killers; // town + any surviving neutrals
   if (killers === 0) return "town";
@@ -828,7 +842,7 @@ export function checkWinner(room: Room): Team | null {
   return null;
 }
 
-function endGame(room: Room, winner: Team, message?: string): void {
+function endGame(room: Room, winner: Winner, message?: string): void {
   room.phase = "ended";
   room.winner = winner;
   const text =
@@ -837,7 +851,9 @@ function endGame(room: Room, winner: Team, message?: string): void {
       ? "🎉 The Town wins! All Killers have been eliminated."
       : winner === "mafia"
         ? "💀 The Killers win! They control the town."
-        : "🤡 The Neutral player wins!");
+        : winner === "lovers"
+          ? "💞 The Lovers win! Their forbidden bond outlasted everyone."
+          : "🤡 The Neutral player wins!");
   room.log.push({ phase: "ended", day: room.day, text });
 
   // A closing line for the end-of-game story.
@@ -847,7 +863,9 @@ function endGame(room: Room, winner: Team, message?: string): void {
       ? "🌅 And so the town, battered but unbroken, finally slept soundly."
       : winner === "mafia"
         ? "🌑 The town never saw the dawn — the Killers had won."
-        : "🎭 The curtain fell on the strangest victory of all.";
+        : winner === "lovers"
+          ? "💞 Two hearts from opposite worlds, the last ones standing — together."
+          : "🎭 The curtain fell on the strangest victory of all.";
   const roll = survivors.length
     ? ` Left standing: ${survivors.join(", ")}.`
     : " Not a single soul remained.";
