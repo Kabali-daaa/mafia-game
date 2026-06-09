@@ -75,7 +75,7 @@ async function openAs(code, pid, name, vp) {
 }
 const txt = (pg) => pg.evaluate(() => document.body.innerText);
 const overflow = (pg) => pg.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
-const click = (pg, t) => pg.evaluate((t) => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent && x.textContent.includes(t)); if (b) { b.click(); return true; } return false; }, t);
+const click = (pg, t) => pg.evaluate((t) => { const b = [...document.querySelectorAll("button,[role=button]")].find((x) => x.textContent && x.textContent.includes(t)); if (b) { b.click(); return true; } return false; }, t);
 const shot = (pg, f) => pg.screenshot({ path: `${OUT}/${f}`, fullPage: true });
 const until = async (pg, re) => { for (let i = 0; i < 25; i++) { try { if (re.test(await txt(pg))) return true; } catch {} await wait(300); } return false; };
 
@@ -85,8 +85,12 @@ section("Dramatic role reveal + hide toggle (mobile)");
   const g = await game("vz1_", { killer: 1, police: 1, villager: 2 });
   const p = g.ids[0];
   const page = await openAs(g.code, p, "A", MOBILE);
-  A(await until(page, /YOU ARE THE/i), "dramatic reveal overlay appears on a new role");
+  // Reveal is tap-gated: a face-down card by default, so a glance can't expose the role.
+  A(await until(page, /Tap to see your role/i), "role reveal is tap-gated (face-down by default)");
   A(!(await overflow(page)), "reveal: no horizontal overflow (mobile)");
+  await shot(page, "vis-reveal-facedown-mobile.png");
+  await click(page, "Tap to see your role");
+  A(await until(page, /YOU ARE THE/i), "tapping the card reveals the role");
   await shot(page, "vis-reveal-mobile.png");
   await click(page, "Got it");
   A(await until(page, /Tap to reveal/), "after 'Got it', role is hidden in the header");

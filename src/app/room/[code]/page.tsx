@@ -245,11 +245,7 @@ function Room({ view }: { view: RoomView }) {
 
 // Full-screen, suspenseful role reveal shown when a player's role is assigned.
 function RoleReveal({ role, onDone }: { role: RoleDef | null; onDone: () => void }) {
-  const [stage, setStage] = useState(0); // 0 = build-up, 1 = revealed
-  useEffect(() => {
-    const t = setTimeout(() => setStage(1), 1400);
-    return () => clearTimeout(t);
-  }, []);
+  const [revealed, setRevealed] = useState(false); // tap-gated so a glance can't expose your role
   if (!role) return null;
 
   const glow =
@@ -267,12 +263,30 @@ function RoleReveal({ role, onDone }: { role: RoleDef | null; onDone: () => void
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6 backdrop-blur-sm">
-      {stage === 0 ? (
-        <div className="text-center">
-          <div className="font-display text-2xl font-semibold uppercase tracking-[0.3em] text-gold-soft animate-pulse">
-            Dealing your fate…
+      {!revealed ? (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setRevealed(true)}
+          className="flex cursor-pointer flex-col items-center text-center"
+        >
+          <div className="mb-5 font-display text-sm font-semibold uppercase tracking-[0.4em] text-gold-soft">
+            Your fate is dealt
           </div>
-          <div className="mt-6 text-6xl animate-spin-slow">🎭</div>
+          {/* Face-down card — nothing is shown until the player chooses to flip it. */}
+          <div className="relative flex h-96 w-72 flex-col items-center justify-center rounded-2xl border border-gold/40 bg-gradient-to-br from-ink-600 to-ink-900 shadow-2xl ring-1 ring-gold/30">
+            <span className="absolute left-3 top-2 text-lg text-gold/50">♠</span>
+            <span className="absolute bottom-2 right-3 rotate-180 text-lg text-gold/50">♠</span>
+            <div className="pointer-events-none absolute inset-2 rounded-xl border border-gold/15" />
+            <div className="text-6xl text-gold/70 animate-flicker">🎭</div>
+            <div className="mt-4 font-display text-lg uppercase tracking-[0.35em] text-gold/60">
+              Mafia
+            </div>
+          </div>
+          <span className="mt-8 rounded-2xl bg-blood px-8 py-3 font-bold text-bone shadow-lg shadow-black/60 ring-1 ring-gold/30">
+            👆 Tap to see your role
+          </span>
+          <span className="mt-3 text-xs text-white/40">Make sure no one's looking.</span>
         </div>
       ) : (
         <div className="flex flex-col items-center text-center">
@@ -846,11 +860,33 @@ function ActionPanel({ view }: { view: RoomView }) {
 /* ------------------------------- phases ---------------------------------- */
 
 function PrivateMessage({ view }: { view: RoomView }) {
-  if (!view.privateMessage) return null;
+  // Tap-gated: the content (which can reveal your role) stays hidden until you choose
+  // to read it, so it never sits exposed on screen for a passer-by to see.
+  const [open, setOpen] = useState(false);
+  // Reset to hidden whenever the message itself changes (new night result).
+  const msg = view.privateMessage;
+  useEffect(() => setOpen(false), [msg]);
+  if (!msg) return null;
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="mb-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-gold/10 px-4 py-3 text-left text-sm font-semibold text-gold-soft ring-1 ring-gold/25 transition hover:bg-gold/15"
+      >
+        <span>🔒 You have a private message</span>
+        <span className="text-xs font-normal text-white/45">Tap to read</span>
+      </button>
+    );
+  }
   return (
-    <div className="mb-3 rounded-2xl bg-amber-400/15 px-4 py-3 text-sm font-medium text-amber-100 ring-1 ring-amber-400/25">
-      {view.privateMessage}
-    </div>
+    <button
+      onClick={() => setOpen(false)}
+      className="mb-3 flex w-full items-start justify-between gap-3 rounded-2xl bg-gold/15 px-4 py-3 text-left text-sm font-medium text-bone ring-1 ring-gold/30"
+    >
+      <span>{msg}</span>
+      <span className="shrink-0 text-xs text-white/40">🙈 hide</span>
+    </button>
   );
 }
 
@@ -900,7 +936,8 @@ function NightPhase({ view }: { view: RoomView }) {
       <PrivateMessage view={view} />
       {view.prompt ? (
         <>
-          <PhaseHeading emoji="🌙" title={view.prompt.text} />
+          <PhaseHeading emoji="🌙" title="Your move tonight" />
+          <p className="mt-2 text-sm text-white/50">{view.prompt.text}</p>
           <ActionPanel view={view} />
         </>
       ) : (
@@ -920,9 +957,10 @@ function NightPhase({ view }: { view: RoomView }) {
 function WitchPhase({ view }: { view: RoomView }) {
   if (view.prompt && view.prompt.kind === "witch") {
     return (
-      <Card className="!bg-purple-500/10 ring-purple-400/30">
+      <Card className="!bg-ink-600 ring-gold/20">
         <PrivateMessage view={view} />
-        <PhaseHeading emoji="🧙" title={view.prompt.text} />
+        <PhaseHeading emoji="🌙" title="Your move tonight" />
+        <p className="mt-2 text-sm text-white/50">{view.prompt.text}</p>
         <ActionPanel view={view} />
       </Card>
     );
@@ -1148,11 +1186,11 @@ function Chat({ view }: { view: RoomView }) {
     <div className="space-y-5">
       {chat.killers !== null && (
         <ChatBox
-          title="🔪 Killers' room"
+          title="🔒 Private room"
           subtitle={
             isHost
-              ? "Private to the Killers — you can whisper anonymously."
-              : "Private to you and your fellow Killers."
+              ? "A private channel — you can whisper anonymously."
+              : "Private to you and your circle."
           }
           accent="killers"
           code={view.code}
@@ -1161,10 +1199,10 @@ function Chat({ view }: { view: RoomView }) {
           canPost={chat.canPostKillers}
           placeholder={
             !chat.canPostKillers
-              ? "Killers' room is quiet now."
+              ? "This room is quiet now."
               : isHost
-                ? "Whisper to the Killers (anonymously)…"
-                : "Plan with your team…"
+                ? "Whisper here (anonymously)…"
+                : "Plan with your circle…"
           }
         />
       )}
@@ -1229,8 +1267,8 @@ function ChatBox({
 
   const isKillers = accent === "killers";
   return (
-    <Card className={isKillers ? "!bg-rose-500/10 ring-rose-400/25" : ""}>
-      <h2 className="text-sm font-extrabold">{title}</h2>
+    <Card className={isKillers ? "!bg-ink-600 ring-gold/20" : ""}>
+      <h2 className="font-display text-sm font-extrabold text-bone">{title}</h2>
       <p className="mt-0.5 text-xs text-white/45">{subtitle}</p>
 
       <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
