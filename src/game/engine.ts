@@ -541,6 +541,20 @@ function narrateMorning(dead: string[]): string {
     "was found pinned to the earth by their own shadow",
     "choked on soil, mouth and throat packed with grave-dirt",
     "was unstitched at every seam, as if something crawled out",
+    "was found with claw marks climbing the wall above the bed",
+    "was turned inside out, neat as a peeled glove",
+    "was found facedown in a broken circle of salt",
+    "was torn open from the inside, ribs bent outward",
+    "was dragged beneath the floorboards — only the fingertips remained",
+    "drowned on dry land, water still filling their lungs",
+    "was found grey and shrivelled, decades older than they slept",
+    "was bled into the soil until the whole garden ran red",
+    "was found locked in from the inside — and not alone",
+    "was reduced to a dark smear and a single shoe",
+    "was found staring up, jaw locked open in a soundless scream",
+    "had the breath stolen clean out of them, lips gone blue",
+    "was found with their reflection still moving in the glass",
+    "was hollowed by the cold, frost blooming from the wound",
   ];
   // Pick distinct causes for the victims.
   const pool = [...causes];
@@ -582,6 +596,14 @@ function narrateMorning(dead: string[]): string {
       "were found with their eyes gone and mouths frozen mid-scream",
       "were swallowed by the dark and spat back out in pieces",
       "were stacked at the well, cold and broken",
+      "were found knotted together, impossible to tell apart",
+      "were dragged off one by one, screaming into the dark",
+      "were laid out in a neat row, hands folded, eyes wide open",
+      "were drowned together in the rising black water of the well",
+      "were left hanging from the rafters in a silent row",
+      "were found cold around a dead fire, as if they never moved",
+      "were torn through the same wall — splinters, then blood",
+      "were swallowed whole by the night and never seen again",
     ]);
     return pick([
       `🩸 A night of slaughter — ${nameList} ${fate}.`,
