@@ -25,6 +25,8 @@ import {
   nightSteps,
   checkWinner,
   buildView,
+  hostSkip,
+  allVotesIn,
   type Room,
 } from "@/game/engine";
 import type { Player } from "@/lib/types";
@@ -320,6 +322,28 @@ test("a day elimination reveals the victim's role in the story log", () => {
   dayVote(room, { K: "K", V1: "K", V2: "K", V3: "K" });
   const revealed = room.log.some((e) => /banished/i.test(e.text) && /Killer/i.test(e.text));
   assert.ok(revealed, "the log names the banished player's role");
+});
+
+/* ----------------------------- AFK / God skip ---------------------------- */
+
+test("the God can skip a stalling voter to complete the day vote", () => {
+  const room = setup({ K: "killer", V1: "villager", V2: "villager", V3: "villager" });
+  reachDay(room);
+  openVote(room);
+  submitVote(room, "K", "K");
+  submitVote(room, "V1", "K");
+  submitVote(room, "V2", "K"); // V3 is AFK
+  assert.equal(allVotesIn(room), false, "vote incomplete while V3 hasn't voted");
+  hostSkip(room, "V3");
+  assert.equal(allVotesIn(room), true, "skipping the AFK player completes the tally");
+  resolveDay(room);
+  assert.equal(isAlive(room, "K"), false, "the vote resolves and the Killer is banished");
+});
+
+test("the God can skip an AFK night actor (recorded as held back)", () => {
+  const room = setup({ K: "killer", Dr: "doctor", V1: "villager", V2: "villager" });
+  hostSkip(room, "K");
+  assert.deepEqual(room.nightActions["K"], [], "the Killer is marked as held back");
 });
 
 /* ------------------------------- privacy --------------------------------- */
