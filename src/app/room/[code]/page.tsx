@@ -1438,15 +1438,13 @@ function LogFeed({ view }: { view: RoomView }) {
   return (
     <Card>
       <SectionTitle>Story so far</SectionTitle>
+      {/* Chronological — oldest at the top — so it reads as a story, newest last. */}
       <ul className="mt-3 space-y-2 text-sm">
-        {view.log
-          .slice()
-          .reverse()
-          .map((e, i) => (
-            <li key={i} className="rounded-2xl bg-white/[0.04] px-3.5 py-2.5 text-white/80">
-              {e.text}
-            </li>
-          ))}
+        {view.log.map((e, i) => (
+          <li key={i} className="rounded-2xl bg-white/[0.04] px-3.5 py-2.5 text-white/80">
+            {e.text}
+          </li>
+        ))}
       </ul>
     </Card>
   );
