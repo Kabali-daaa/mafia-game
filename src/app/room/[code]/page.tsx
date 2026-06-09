@@ -907,22 +907,31 @@ function NightPhase({ view }: { view: RoomView }) {
         <PhaseHeading emoji="🌙" title={`Night ${view.day}`} />
         <p className="mt-1 text-sm text-white/55">
           Now calling: <span className="font-bold text-white/85">{view.nightStepLabel ?? "…"}</span>.
-          Tap the button below to move on.
+          Tap the button below to move on — or skip anyone who's stalling.
         </p>
         <ul className="mt-3 space-y-1.5">
           {board.map((e, i) => (
             <li
               key={i}
               className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm ring-1 ${
-                e.current ? "bg-indigo-500/15 ring-indigo-400/40" : "bg-white/[0.04] ring-gold/15"
+                e.current ? "bg-steel-deep/25 ring-steel/40" : "bg-white/[0.04] ring-gold/15"
               }`}
             >
-              <span className="min-w-0">
-                <span className="text-white/45">{e.step}</span>{" "}
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="text-white/45">{e.step}</span>
                 <span className="font-semibold">{e.name}</span>
+                {!e.connected && <span className="text-[10px] font-semibold text-blood-soft">offline</span>}
               </span>
-              <span className={`shrink-0 ${e.done ? "text-emerald-300" : "text-amber-300"}`}>
-                {e.text}
+              <span className="flex shrink-0 items-center gap-2">
+                <span className={e.done ? "text-emerald-300" : "text-amber-300"}>{e.text}</span>
+                {!e.done && (
+                  <button
+                    onClick={() => sendAction(view.code, "hostSkip", { targetId: e.id })}
+                    className="rounded-lg bg-white/10 px-2 py-0.5 text-xs font-semibold text-white/70 transition hover:bg-white/20"
+                  >
+                    skip
+                  </button>
+                )}
               </span>
             </li>
           ))}
@@ -1098,6 +1107,36 @@ function HostControls({ view }: { view: RoomView }) {
                 </div>
               ))
           )}
+        </div>
+      )}
+
+      {dayVoting && status && status.pendingPlayers.length > 0 && (
+        <div className="mt-3 rounded-2xl bg-black/20 p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wide text-amber-100/70">
+              Waiting on {status.pendingPlayers.length}
+            </span>
+            <button
+              onClick={() => sendAction(view.code, "hostSkip", { targetId: "__all__" })}
+              className="rounded-lg bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/75 transition hover:bg-white/20"
+            >
+              Skip all
+            </button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {status.pendingPlayers.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => sendAction(view.code, "hostSkip", { targetId: p.id })}
+                title="Skip this player's vote"
+                className="flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/75 transition hover:bg-white/20"
+              >
+                {p.name}
+                {!p.connected && <span className="text-[10px] text-blood-soft">offline</span>}
+                <span className="text-white/40">✕</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

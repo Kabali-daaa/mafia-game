@@ -8,6 +8,7 @@ import {
   allVotesIn,
   beginNight,
   canStart,
+  hostSkip,
   openVote,
   postChat,
   resetToLobby,
@@ -83,6 +84,7 @@ export type ActionType =
   | "godDecide"
   | "chat"
   | "advance"
+  | "hostSkip"
   | "reset";
 
 // Apply a player's action. Throws GameError for user-facing problems.
@@ -153,6 +155,12 @@ export function applyAction(
         else if (room.voteStage === "godchoice") resolveGodChoice(room, "skip");
         else resolveDay(room); // "vote" / "revote"
       }
+      return;
+    }
+    case "hostSkip": {
+      if (!isHost) return;
+      hostSkip(room, String(payload?.targetId ?? ""));
+      maybeAdvance(room); // a completed day tally can now auto-resolve
       return;
     }
     case "reset": {

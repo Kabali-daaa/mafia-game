@@ -1037,9 +1037,11 @@ function buildNightBoard(room: Room): NightBoardEntry[] {
       const done = p.id in room.nightActions;
       const targets = room.nightActions[p.id] ?? [];
       board.push({
+        id: p.id,
         step: `${step.emoji} ${step.label}`,
         current: si === room.nightStep,
         name: p.name,
+        connected: p.connected,
         done,
         text: describeNightAction(room, p.roleId ?? "", targets, done),
       });
@@ -1148,22 +1150,56 @@ function buildPrompt(room: Room, viewer: Player): ActionPrompt | null {
   return null;
 }
 
+const pendingInfo = (players: Player[]) =>
+  players.map((p) => ({ id: p.id, name: p.name, connected: p.connected }));
+
 function buildHostStatus(room: Room): HostStatus {
   if (room.phase === "night") {
     const pending = pendingNightActors(room);
-    const acted = pending.filter((p) => p.id in room.nightActions).length;
-    return { acted, pending: pending.length, voteCounts: {} };
+    const waiting = pending.filter((p) => !(p.id in room.nightActions));
+    return {
+      acted: pending.length - waiting.length,
+      pending: pending.length,
+      voteCounts: {},
+      pendingPlayers: pendingInfo(waiting),
+    };
   }
   if (room.phase === "day") {
     const voters = aliveVoters(room);
     if (room.voteStage === "godchoice")
-      return { acted: 0, pending: 0, voteCounts: voteCounts(room) };
-    const acted = voters.filter((p) =>
-      room.voteStage === "choice" ? p.id in room.choiceVotes : p.id in room.votes
-    ).length;
-    return { acted, pending: voters.length, voteCounts: voteCounts(room) };
+      return { acted: 0, pending: 0, voteCounts: voteCounts(room), pendingPlayers: [] };
+    const acted = room.voteStage === "choice"
+      ? voters.filter((p) => p.id in room.choiceVotes)
+      : voters.filter((p) => p.id in room.votes);
+    const waiting = voters.filter((p) => !acted.includes(p));
+    return {
+      acted: acted.length,
+      pending: voters.length,
+      voteCounts: voteCounts(room),
+      pendingPlayers: pendingInfo(waiting),
+    };
   }
-  return { acted: 0, pending: 0, voteCounts: {} };
+  return { acted: 0, pending: 0, voteCounts: {}, pendingPlayers: [] };
+}
+
+// The God skips a stalling/AFK player so the room can complete. `targetId` may be
+// a single player id, or "__all__" to skip everyone currently being waited on.
+// (Night: records "held back". Day vote: a Skip vote. Day choice: a Skip choice.)
+export function hostSkip(room: Room, targetId: string): void {
+  const skipOne = (id: string) => {
+    const p = get(room, id);
+    if (!p || !p.alive || p.isHost) return;
+    if (room.phase === "night") {
+      if (actsTonight(room, p) && !(id in room.nightActions)) room.nightActions[id] = [];
+    } else if (room.phase === "day") {
+      if ((room.voteStage === "vote" || room.voteStage === "revote") && !(id in room.votes))
+        room.votes[id] = null;
+      else if (room.voteStage === "choice" && !(id in room.choiceVotes))
+        room.choiceVotes[id] = "skip";
+    }
+  };
+  if (targetId === "__all__") buildHostStatus(room).pendingPlayers.forEach((p) => skipOne(p.id));
+  else skipOne(targetId);
 }
 
 export { ROLES };

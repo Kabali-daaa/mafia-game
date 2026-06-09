@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const VALID: ActionType[] = [
-  "setConfig", "start", "nightAction", "vote", "choice", "godDecide", "chat", "advance", "reset",
+  "setConfig", "start", "nightAction", "vote", "choice", "godDecide", "chat", "advance", "hostSkip", "reset",
 ];
 
 export async function POST(req: Request) {

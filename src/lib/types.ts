@@ -70,9 +70,11 @@ export interface NightControl {
 }
 
 export interface NightBoardEntry {
+  id: string; // the acting player's id (so the God can skip them if AFK)
   step: string; // role-group label, e.g. "🩺 Doctor"
   current: boolean; // is this the step being called right now
   name: string; // player's name
+  connected: boolean; // false if they look disconnected (likely AFK)
   done: boolean; // have they acted yet
   text: string; // what they did, e.g. "🎯 chose Ben" / "⏳ waiting…"
 }
@@ -124,6 +126,9 @@ export interface HostStatus {
   pending: number;
   // For the day phase: current vote counts by target id.
   voteCounts: Record<string, number>;
+  // Players still being waited on (haven't voted/acted yet) — so the God can
+  // see who's stalling and skip an AFK player. `connected: false` ≈ likely AFK.
+  pendingPlayers: { id: string; name: string; connected: boolean }[];
 }
 
 // Number of each role to include. Keyed by role id.
