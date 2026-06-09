@@ -537,12 +537,18 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           {tab === "how" ? (
             <>
               <div>
-                <h3 className="font-bold text-white">🎯 Goal</h3>
-                <ul className="mt-1 space-y-1">
-                  <li>🔵 <b>Town</b> wins when every Killer is eliminated.</li>
-                  <li>🔴 <b>Killers</b> win when they equal or outnumber the rest.</li>
-                  <li>🟡 <b>Jester</b> wins instantly if voted out by the town.</li>
+                <h3 className="font-bold text-white">🏆 How to win</h3>
+                <ul className="mt-1 space-y-1.5">
+                  <li>🔵 <b>Town</b> — win when <b>every Killer is eliminated</b>.</li>
+                  <li>🔴 <b>Killers</b> — win when they <b>equal or outnumber</b> everyone else still alive.</li>
+                  <li>🤡 <b>Jester</b> — wins <b>alone &amp; instantly</b> if the town <b>votes them out</b> (banished to the forest). Being murdered at <i>night</i> does <b>not</b> count.</li>
+                  <li>💞 <b>Lovers</b> — a Cupid couple from <b>opposite sides</b> (e.g. a Cop + a Killer) win <b>together</b> if they're the <b>last two players alive</b>.</li>
                 </ul>
+                <p className="mt-2 text-xs text-white/45">
+                  The winner is checked after every night and every day vote — the first
+                  side to meet its condition wins. A living Jester counts toward
+                  &ldquo;everyone else,&rdquo; delaying a Killer win.
+                </p>
               </div>
               <div>
                 <h3 className="font-bold text-white">🌙 Night</h3>
@@ -557,7 +563,8 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                 <h3 className="font-bold text-white">☀️ Day</h3>
                 <p className="mt-1">
                   Morning reveals who died (never their role). The town discusses in
-                  chat, then votes out one suspect — whose role <b>is</b> revealed. Ties
+                  chat, then votes to <b>banish</b> one suspect from the village — whose
+                  role <b>is</b> revealed. (The day vote is an exile, not a killing.) Ties
                   go to a Skip-or-Revote choice; a deadlock is broken by the God.
                 </p>
               </div>
