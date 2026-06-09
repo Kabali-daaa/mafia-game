@@ -685,13 +685,13 @@ function eliminate(room: Room, victimId: string | null): void {
       room.log.push({
         phase: "day",
         day: room.day,
-        text: `🗳️ The town voted out ${victim.name} — they were the ${role?.emoji ?? ""} ${role?.name ?? "Unknown"}.`,
+        text: `🗳️ The town banished ${victim.name} from the village — they were the ${role?.emoji ?? ""} ${role?.name ?? "Unknown"}.`,
       });
       if (role?.winsIfLynched) {
         endGame(
           room,
           role.team,
-          `🤡 ${victim.name} the ${role.name} got exactly what they wanted — voted out, and victorious!`
+          `🤡 Banished! ${victim.name} the Jester is run out of the village to live free in the forest — exactly as they dreamed. They win!`
         );
         return;
       }
@@ -701,7 +701,7 @@ function eliminate(room: Room, victimId: string | null): void {
     room.log.push({
       phase: "day",
       day: room.day,
-      text: "🗳️ No one is eliminated.",
+      text: "🗳️ The town spares everyone — no one is banished.",
     });
   }
 
@@ -865,7 +865,7 @@ function endGame(room: Room, winner: Winner, message?: string): void {
         ? "🌑 The town never saw the dawn — the Killers had won."
         : winner === "lovers"
           ? "💞 Two hearts from opposite worlds, the last ones standing — together."
-          : "🎭 The curtain fell on the strangest victory of all.";
+          : "🌲 The Jester skips off into the forest, free at last — cackling all the way.";
   const roll = survivors.length
     ? ` Left standing: ${survivors.join(", ")}.`
     : " Not a single soul remained.";

@@ -23,7 +23,7 @@ Two main sides are fighting (plus a lone trickster):
 | 💞 **Lovers** (cross-team couple) | the two linked Lovers are the **last two players alive** |
 
 The Town finds and votes out the Killers by day; the Killers quietly pick off the
-Town by night. The Jester plays for itself and wins only by getting lynched.
+Town by night. The Jester plays for itself and wins only by getting voted out (banished).
 
 ### Every winning scenario in detail
 
@@ -32,16 +32,17 @@ elimination**. The first side to meet its condition wins immediately.
 
 - 🔵 **Town victory — all Killers gone.** The moment the number of living
   Killer-side players (Killer + Godfather + Psycho) hits **zero**, the Town wins.
-  This can happen by a **day lynch** (voting out the last Killer) or at **night**
+  This can happen by a **day vote** (banishing the last Killer) or at **night**
   (e.g. the Vigilante shoots the last Killer, or a Killer is caught in the Item's /
   Lovers' linked fate).
 - 🔴 **Killers victory — parity.** As soon as the living Killers **equal or
   outnumber** everyone else alive (`killers ≥ everyone-else`), the Killers win — they
   can no longer be out-voted. This usually triggers at **night** after a kill brings
-  the town down to the Killers' level, but it can also trigger **by day** if a lynch
-  removes a townsperson and tips the balance.
-- 🟡 **Jester victory — lynched.** The Jester wins **instantly and alone** the moment
-  the **town votes them out** during the day. (Being killed at *night* does **not**
+  the town down to the Killers' level, but it can also trigger **by day** if a vote
+  banishes a townsperson and tips the balance.
+- 🟡 **Jester victory — banished.** The Jester wins **instantly and alone** the moment
+  the **town votes them out** during the day — banished to live free in the forest, just
+  as they dreamed. (Being killed at *night* does **not**
   win it for the Jester — it must be the day vote.) A Jester win ends the game even if
   a Town or Killer condition would also be met that turn.
 - 💞 **Lovers victory — last two standing.** If Cupid links two players from **opposite
@@ -49,15 +50,17 @@ elimination**. The first side to meet its condition wins immediately.
   win **together** the moment the **only two players left alive are the couple**. This
   is checked *before* the Town/Killer conditions, so a final Cop-lover + Killer-lover
   pair is a **Lovers win**, not a Killer win. (Lovers on the *same* side don't form a
-  separate couple — they just resolve as their shared team.)
+  separate couple — they just resolve as their shared team.) A **Jester** counts as
+  cross-team with anyone, so a Jester-lover can also win this way — surviving to the
+  final couple, even without being voted out.
 
 ### Things that affect who wins
 
 - **Surviving neutrals delay a Killer win.** A living Jester counts as one of
   "everyone else," so the Killers need one more kill to reach parity while the Jester
   is still around.
-- **Lovers die together** — a night kill or a lynch of one Lover kills the other of
-  heartbreak. If they're on the **same** side they don't form a separate couple (their
+- **Lovers die together** — a night kill or a daytime banishment of one Lover kills the
+  other of heartbreak. If they're on the **same** side they don't form a separate couple (their
   shared team's condition decides); if they're **cross-team** they win as a couple by
   being the last two alive (see the Lovers victory above).
 - **A transformed Psycho counts for the Town.** Once the Doctor heals the Psycho
@@ -106,10 +109,12 @@ together (saves cancel kills, the Item's curse and Lovers' fate apply, etc.).
 Morning is announced with a bit of flavour — who died overnight and *how* (poisoned,
 stabbed, strangled…), but **never their role**. Players **discuss in the Town chat**
 (anonymously) and any private night results appear (e.g. the Police's finding).
-Then everyone **votes** to eliminate a suspect.
+Then everyone **votes** to **banish** a suspect from the village (the day vote is an
+exile, not an execution — that's the Jester's dream, and the Killers' nightly murders
+are the real deaths).
 
 When everyone has voted — or the God taps **Resolve vote** — the result is applied,
-the eliminated player's role is **revealed**, and night falls again.
+the banished player's role is **revealed**, and night falls again.
 
 ---
 
@@ -155,14 +160,14 @@ If two or more players tie for the most votes:
 ### 🟡 Neutral
 | Role | Power |
 |------|-------|
-| 🤡 **Jester** | Plays alone. **Wins instantly if the town votes them out.** Has no night power — their whole game is acting suspicious enough to get lynched. |
+| 🤡 **Jester** | A lone trickster who **dreams of being banished to live free in the forest** — so they **win instantly if the town votes them out**. No night power; their whole game is acting suspicious enough to get voted out. Being killed by the Killers at night is the one fate they dread. |
 
 ---
 
 ## Special mechanics
 
 - **💞 Lovers** (created by Cupid): if **one Lover dies** — by a night kill **or** a
-  day lynch — the **other dies too**. They're privately told who they love.
+  daytime banishment — the **other dies too**. They're privately told who they love.
 - **🎲 The Item's curse:** each night the Item **chooses** someone to spend the
   night with (never the same person twice). Chose a Killer → the Item dies. Chose
   someone who dies that night → the Item dies with them.
