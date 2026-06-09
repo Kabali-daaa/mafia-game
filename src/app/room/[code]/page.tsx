@@ -1217,7 +1217,7 @@ function Ended({ view }: { view: RoomView }) {
               <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-bold text-white/50">
                 {i + 1}
               </span>
-              <p className="text-sm leading-relaxed text-white/80">{e.text}</p>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-white/80">{e.text}</p>
             </li>
           ))}
         </ol>
@@ -1442,7 +1442,7 @@ function LogFeed({ view }: { view: RoomView }) {
       {/* Chronological — oldest at the top — so it reads as a story, newest last. */}
       <ul className="mt-3 space-y-2 text-sm">
         {view.log.map((e, i) => (
-          <li key={i} className="rounded-2xl bg-white/[0.04] px-3.5 py-2.5 text-white/80">
+          <li key={i} className="whitespace-pre-line rounded-2xl bg-white/[0.04] px-3.5 py-2.5 text-white/80">
             {e.text}
           </li>
         ))}
