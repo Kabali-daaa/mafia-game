@@ -49,7 +49,7 @@ taps **Next** to move on. Only the called role can act; everyone else waits. The
 God sees a live board of **who acted and what they chose**. The order is:
 
 1. 💘 **Cupid** — links the Lovers (night 1 only)
-2. 🔪 **Killers / Godfather** — choose a victim
+2. 🔪 **Killers / Godfather** — agree on **one** victim (one kill total, even with several)
 3. 🪓 **Psycho Killer** (odd nights)
 4. 🔫 **Vigilante** (odd nights, after transforming)
 5. 🚓 **Police** — investigate a suspect
@@ -93,7 +93,7 @@ If two or more players tie for the most votes:
 ### 🔴 Killers' side
 | Role | Power |
 |------|-------|
-| 🔪 **Killer** | Each night, the Killers choose **one player to eliminate**. |
+| 🔪 **Killer** | Each night the Killers — **as a team** — choose **one** player to eliminate. Even with several Killers + the Godfather, it's still **one kill per night** (the most-chosen target; ties broken at random). |
 | 🎩 **Godfather** | Eliminates like a Killer, **but reads as innocent** if the Police investigate them. |
 | 🪓 **Psycho Killer** | A lone killer who strikes **only on odd nights** (1, 3, 5…). **Twist:** if the Doctor ever heals the Psycho, they **secretly transform into a 🔫 Vigilante** (Town) — only they are told. |
 
