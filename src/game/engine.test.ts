@@ -203,13 +203,14 @@ test("the Town wins when the last Killer is voted out", () => {
   assert.equal(room.winner, "town");
 });
 
-test("the end-game story reveals every player's role (the masks come off)", () => {
+test("the end-game chronicle replays the game and reveals every role", () => {
   const room = setup({ K: "killer", V1: "villager", V2: "villager", V3: "villager" });
-  dayVote(room, { K: "K", V1: "K", V2: "K", V3: "K" }); // town wins
-  const reveal = room.log.find((e) => /masks come off/i.test(e.text));
-  assert.ok(reveal, "an end-game reveal line is logged");
-  assert.ok(/K \(.*Killer\)/.test(reveal!.text), "names map to roles, e.g. K (Killer)");
-  assert.ok(/Villager/i.test(reveal!.text), "villagers are revealed too");
+  dayVote(room, { K: "K", V1: "K", V2: "K", V3: "K" }); // town wins (K banished)
+  const ended = room.log.filter((e) => e.phase === "ended").map((e) => e.text).join("\n");
+  assert.ok(/every mask comes off/i.test(ended), "the full-story chronicle is shown");
+  assert.ok(/K \(.*Killer\)/.test(ended), "the Killer's role is revealed by name");
+  assert.ok(/Villager/i.test(ended), "villagers' roles are revealed");
+  assert.ok(/Night 1/i.test(ended), "the chronicle replays the night(s)");
 });
 
 test("the Killers win at parity, and the whole Killer team is named", () => {

@@ -56,7 +56,20 @@ export interface Room {
   // Chat history per channel + a monotonic id counter.
   chat: { town: ChatMessage[]; killers: ChatMessage[] };
   chatSeq: number;
+  // A hidden record of everything that happened — every night action, death, and
+  // banishment — replayed (with all roles revealed) only when the game ends.
+  chronicle: ChronicleScene[];
 }
+
+export type ChronicleScene =
+  | {
+      k: "night";
+      day: number;
+      acts: { name: string; roleId: string | null; targets: string[] }[];
+      deaths: { name: string; roleId: string | null; cause: string }[];
+    }
+  | { k: "banish"; day: number; name: string; roleId: string | null }
+  | { k: "bond"; day: number; name: string; roleId: string | null };
 
 export type VoteStage =
   | "discussion"
@@ -109,6 +122,7 @@ export function createRoom(code: string, host: Player): Room {
     witchRevives: {},
     chat: { town: [], killers: [] },
     chatSeq: 0,
+    chronicle: [],
   };
 }
 
@@ -201,6 +215,7 @@ export function startGame(room: Room): void {
   room.witchRevives = {};
   room.chat = { town: [], killers: [] };
   room.chatSeq = 0;
+  room.chronicle = [];
   room.winner = null;
   room.log = [{ phase: "night", day: 1, text: "🌙 Night 1 falls. The town sleeps..." }];
 }
@@ -444,10 +459,42 @@ function attackedTonight(room: Room): string[] {
   return [...set];
 }
 
+// Snapshot what every called role did tonight (target names), for the end chronicle.
+function buildNightActs(room: Room) {
+  const order: Record<string, number> = {};
+  NIGHT_STEPS.forEach((s, i) => s.roles.forEach((r) => (order[r] = i)));
+  return pendingNightActors(room)
+    .map((p) => ({
+      name: p.name,
+      roleId: p.roleId,
+      targets: (room.nightActions[p.id] ?? []).map((id) => nameOf(room, id)),
+    }))
+    .sort((a, b) => (order[a.roleId ?? ""] ?? 99) - (order[b.roleId ?? ""] ?? 99));
+}
+
+// How a role's night action reads in the end-game chronicle.
+function actLine(roleId: string | null, targets: string[]): string {
+  if (!targets.length) return "kept still and did nothing";
+  const t = targets;
+  switch (roleId) {
+    case "killer":
+    case "godfather": return `moved to kill ${t[0]}`;
+    case "psycho": return `crept out and struck at ${t[0]}`;
+    case "vigilante": return `took aim at ${t[0]}`;
+    case "police": return `investigated ${t[0]}`;
+    case "doctor": return `watched over ${t[0]}`;
+    case "item": return `spent the night with ${t[0]}`;
+    case "witch": return `cast a protection over ${t[0]}`;
+    case "cupid": return `bound ${t.join(" & ")} together as lovers`;
+    default: return `chose ${t.join(", ")}`;
+  }
+}
+
 // Resolve the night (after the God has stepped through every role, incl. the Witch).
 export function resolveNight(room: Room): void {
   if (room.phase !== "night") return;
   const ctx = buildNightContext(room);
+  const acts = buildNightActs(room); // capture before resolution (roles pre-transform)
 
   // Run each chosen night action in priority order (the Witch's save adds to
   // protectedIds here, just like the Doctor — she never learns of the heal).
@@ -485,14 +532,79 @@ export function resolveNight(room: Room): void {
     }
   }
 
-  finalizeNight(room, groups);
+  finalizeNight(room, groups, acts);
 }
 
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
+// Spine-chilling, role-agnostic death causes — one assigned to each night victim.
+const DEATH_CAUSES = [
+  "was found torn apart, scattered across the square",
+  "was drained of every last drop of blood",
+  "was found with eyes frozen wide in terror",
+  "was discovered hanging cold from the old oak",
+  "was gutted and left for the crows",
+  "was clawed to ribbons in the night",
+  "was strangled — the marks still purple on their throat",
+  "was poisoned, froth dried at their lips",
+  "vanished, leaving only a dark, wet stain on the floor",
+  "was dragged from the well, bloated and pale",
+  "was burned down to a blackened husk",
+  "was stabbed so many times the blade snapped",
+  "was found with their heart carved clean out",
+  "screamed once before dawn — then only bones were left",
+  "was found smiling, throat cut ear to ear",
+  "rotted overnight, as if months had passed in hours",
+  "was dragged into the dark, nails scraping the floorboards",
+  "was left bled white, two neat punctures at the neck",
+  "was found kneeling in prayer — and missing their head",
+  "was crushed by something no one will name",
+  "was found with their fingernails torn out, clawing at the door",
+  "drowned in their own bed, lungs full of black water",
+  "was split open from throat to navel",
+  "was left as a pile of ash in the shape of a person",
+  "was nailed to the barn wall, long cold",
+  "was found with their mouth sewn shut and their eyes gone",
+  "was peeled and left out in the frost",
+  "had every bone broken, folded into a shape no body should make",
+  "was frozen solid in the middle of summer",
+  "was hollowed out — nothing left inside the skin",
+  "was found whispering to the wall, then fell silent forever",
+  "was bitten clean through, the wound far too wide for any man",
+  "was found pinned to the earth by their own shadow",
+  "choked on soil, mouth and throat packed with grave-dirt",
+  "was unstitched at every seam, as if something crawled out",
+  "was found with claw marks climbing the wall above the bed",
+  "was turned inside out, neat as a peeled glove",
+  "was found facedown in a broken circle of salt",
+  "was torn open from the inside, ribs bent outward",
+  "was dragged beneath the floorboards — only the fingertips remained",
+  "drowned on dry land, water still filling their lungs",
+  "was found grey and shrivelled, decades older than they slept",
+  "was bled into the soil until the whole garden ran red",
+  "was found locked in from the inside — and not alone",
+  "was reduced to a dark smear and a single shoe",
+  "was found staring up, jaw locked open in a soundless scream",
+  "had the breath stolen clean out of them, lips gone blue",
+  "was found with their reflection still moving in the glass",
+  "was hollowed by the cold, frost blooming from the wound",
+];
+
+// Assign each victim a distinct cause — reused for the morning text AND stored in
+// the end-game chronicle so the two always agree.
+function assignCauses(names: string[]): { name: string; cause: string }[] {
+  const pool = [...DEATH_CAUSES];
+  return names.map((name) => {
+    const i = Math.floor(Math.random() * pool.length);
+    const cause = pool.splice(i, 1)[0] ?? pick(DEATH_CAUSES);
+    return { name, cause };
+  });
+}
+
 // Flavourful, spine-chilling morning narration. CRITICAL: it must NEVER hint at the
 // victim's role — every line is a generic gruesome fate that fits any player.
-function narrateMorning(dead: string[]): string {
+function renderMorning(victims: { name: string; cause: string }[]): string {
+  const dead = victims.map((v) => v.name);
   if (dead.length === 0) {
     return pick([
       "🌅 Dawn breaks grey and cold. Somehow, everyone survived the night — though no one slept.",
@@ -504,65 +616,7 @@ function narrateMorning(dead: string[]): string {
       "🕯️ Not one corpse this morning. The candles all burned out at the same hour, though.",
     ]);
   }
-  // One distinct cause per victim — all role-agnostic so nothing is given away.
-  const causes = [
-    "was found torn apart, scattered across the square",
-    "was drained of every last drop of blood",
-    "was found with eyes frozen wide in terror",
-    "was discovered hanging cold from the old oak",
-    "was gutted and left for the crows",
-    "was clawed to ribbons in the night",
-    "was strangled — the marks still purple on their throat",
-    "was poisoned, froth dried at their lips",
-    "vanished, leaving only a dark, wet stain on the floor",
-    "was dragged from the well, bloated and pale",
-    "was burned down to a blackened husk",
-    "was stabbed so many times the blade snapped",
-    "was found with their heart carved clean out",
-    "screamed once before dawn — then only bones were left",
-    "was found smiling, throat cut ear to ear",
-    "rotted overnight, as if months had passed in hours",
-    "was dragged into the dark, nails scraping the floorboards",
-    "was left bled white, two neat punctures at the neck",
-    "was found kneeling in prayer — and missing their head",
-    "was crushed by something no one will name",
-    "was found with their fingernails torn out, clawing at the door",
-    "drowned in their own bed, lungs full of black water",
-    "was split open from throat to navel",
-    "was left as a pile of ash in the shape of a person",
-    "was nailed to the barn wall, long cold",
-    "was found with their mouth sewn shut and their eyes gone",
-    "was peeled and left out in the frost",
-    "had every bone broken, folded into a shape no body should make",
-    "was frozen solid in the middle of summer",
-    "was hollowed out — nothing left inside the skin",
-    "was found whispering to the wall, then fell silent forever",
-    "was bitten clean through, the wound far too wide for any man",
-    "was found pinned to the earth by their own shadow",
-    "choked on soil, mouth and throat packed with grave-dirt",
-    "was unstitched at every seam, as if something crawled out",
-    "was found with claw marks climbing the wall above the bed",
-    "was turned inside out, neat as a peeled glove",
-    "was found facedown in a broken circle of salt",
-    "was torn open from the inside, ribs bent outward",
-    "was dragged beneath the floorboards — only the fingertips remained",
-    "drowned on dry land, water still filling their lungs",
-    "was found grey and shrivelled, decades older than they slept",
-    "was bled into the soil until the whole garden ran red",
-    "was found locked in from the inside — and not alone",
-    "was reduced to a dark smear and a single shoe",
-    "was found staring up, jaw locked open in a soundless scream",
-    "had the breath stolen clean out of them, lips gone blue",
-    "was found with their reflection still moving in the glass",
-    "was hollowed by the cold, frost blooming from the wound",
-  ];
-  // Pick distinct causes for the victims.
-  const pool = [...causes];
-  const lines = dead.map((name) => {
-    const i = Math.floor(Math.random() * pool.length);
-    const cause = pool.splice(i, 1)[0] ?? pick(causes);
-    return `${name} ${cause}`;
-  });
+  const lines = victims.map((v) => `${v.name} ${v.cause}`);
 
   if (dead.length === 1) {
     return pick([
@@ -627,14 +681,18 @@ function narrateMorning(dead: string[]): string {
 // Apply the night's death groups (sparing the one the Witch revived, whole) and
 // open the day. (Anyone the Doctor or Witch protected was already removed from
 // the death set during resolution, so they simply aren't here.)
-function finalizeNight(room: Room, groups: DeathGroup[]): void {
-  const dead: string[] = [];
+function finalizeNight(
+  room: Room,
+  groups: DeathGroup[],
+  acts: { name: string; roleId: string | null; targets: string[] }[]
+): void {
+  const deadPlayers: { name: string; roleId: string | null }[] = [];
   for (const g of groups) {
     for (const id of g.members) {
       const p = get(room, id);
       if (p && p.alive) {
         p.alive = false;
-        dead.push(p.name);
+        deadPlayers.push({ name: p.name, roleId: p.roleId });
       }
     }
   }
@@ -647,11 +705,16 @@ function finalizeNight(room: Room, groups: DeathGroup[]): void {
   room.deathGroups = null;
   room.nightActions = {};
 
-  room.log.push({
-    phase: "day",
+  // Assign causes once, share them between the public morning text and the chronicle.
+  const victims = assignCauses(deadPlayers.map((d) => d.name));
+  room.chronicle.push({
+    k: "night",
     day: room.day,
-    text: narrateMorning(dead),
+    acts,
+    deaths: victims.map((v, i) => ({ name: v.name, roleId: deadPlayers[i].roleId, cause: v.cause })),
   });
+
+  room.log.push({ phase: "day", day: room.day, text: renderMorning(victims) });
 
   const winner = checkWinner(room);
   if (winner) endGame(room, winner);
@@ -770,6 +833,7 @@ function eliminate(room: Room, victimId: string | null): void {
     if (victim && victim.alive) {
       victim.alive = false;
       const role = getRole(victim.roleId);
+      room.chronicle.push({ k: "banish", day: room.day, name: victim.name, roleId: victim.roleId });
       // Full mystery: the banished player's role is NEVER revealed mid-game (all
       // roles are shown only on the end-game screen). The town leaves none the wiser.
       room.log.push({
@@ -906,6 +970,7 @@ function applyLynchLovers(room: Room, deadId: string): void {
   const p = get(room, partner);
   if (p && p.alive) {
     p.alive = false;
+    room.chronicle.push({ k: "bond", day: room.day, name: p.name, roleId: p.roleId });
     room.log.push({
       phase: "day",
       day: room.day,
@@ -984,7 +1049,6 @@ function endGame(room: Room, winner: Winner, message?: string): void {
     });
 
   // A closing line for the end-of-game story.
-  const survivors = alivePlayers(room).map((p) => p.name);
   const closer =
     winner === "town"
       ? "🌅 And so the town, battered but unbroken, finally slept soundly."
@@ -993,25 +1057,45 @@ function endGame(room: Room, winner: Winner, message?: string): void {
         : winner === "lovers"
           ? "💞 Two hearts from opposite worlds, the last ones standing — together."
           : "🌲 The Jester skips off into the forest, free at last — cackling all the way.";
-  const roll = survivors.length
-    ? ` Left standing: ${survivors.join(", ")}.`
-    : " Not a single soul remained.";
-  room.log.push({ phase: "ended", day: room.day, text: closer + roll });
+  room.log.push({ phase: "ended", day: room.day, text: closer });
 
-  // The masks come off — now (and ONLY now) every player's true role is told in
-  // the story itself, e.g. "Karthi (🔪 Killer)".
-  const reveal = room.players
+  // The full director's-cut chronicle — every night replayed (who did what), every
+  // death and how, every banishment, with all roles FINALLY revealed.
+  const who = (name: string, roleId: string | null) => {
+    const r = getRole(roleId);
+    return `${name} (${r?.emoji ?? ""} ${r?.name ?? "Unknown"})`;
+  };
+  room.log.push({ phase: "ended", day: room.day, text: "📖 The full story — every mask comes off:" });
+  for (const scene of room.chronicle) {
+    if (scene.k === "night") {
+      const lines = [`🌙 Night ${scene.day}`];
+      for (const a of scene.acts) lines.push(`   · ${who(a.name, a.roleId)} ${actLine(a.roleId, a.targets)}`);
+      if (scene.deaths.length)
+        for (const d of scene.deaths) lines.push(`   ☠️ ${who(d.name, d.roleId)} ${d.cause}`);
+      else lines.push("   ☀️ …and when dawn came, no one had died.");
+      room.log.push({ phase: "ended", day: room.day, text: lines.join("\n") });
+    } else if (scene.k === "banish") {
+      room.log.push({
+        phase: "ended",
+        day: room.day,
+        text: `🗳️ Day ${scene.day} — the town banished ${who(scene.name, scene.roleId)}.`,
+      });
+    } else {
+      room.log.push({
+        phase: "ended",
+        day: room.day,
+        text: `💔 ${who(scene.name, scene.roleId)} fell with their love that same day.`,
+      });
+    }
+  }
+  const stillAlive = alivePlayers(room)
     .filter((p) => !p.isHost)
-    .map((p) => {
-      const r = getRole(p.roleId);
-      return `${p.name} (${r?.emoji ?? ""} ${r?.name ?? "Unknown"})`;
-    })
-    .join(", ");
-  if (reveal)
+    .map((p) => who(p.name, p.roleId));
+  if (stillAlive.length)
     room.log.push({
       phase: "ended",
       day: room.day,
-      text: `🎭 The masks come off — ${reveal}.`,
+      text: `🟢 Walked away alive: ${stillAlive.join(", ")}.`,
     });
 }
 
@@ -1030,6 +1114,7 @@ export function resetToLobby(room: Room): void {
   room.witchRevives = {};
   room.chat = { town: [], killers: [] };
   room.chatSeq = 0;
+  room.chronicle = [];
   room.log = [];
   for (const p of room.players) {
     p.roleId = null;
