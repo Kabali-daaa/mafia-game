@@ -317,11 +317,14 @@ test("a 2–2 tie opens the choice stage, and a Skip majority spares everyone", 
 
 /* ----------------------- elimination reveals the role -------------------- */
 
-test("a day elimination reveals the victim's role in the story log", () => {
+test("a day banishment does NOT reveal the victim's role (full mystery)", () => {
   const room = setup({ K: "killer", V1: "villager", V2: "villager", V3: "villager" });
-  dayVote(room, { K: "K", V1: "K", V2: "K", V3: "K" });
-  const revealed = room.log.some((e) => /banished/i.test(e.text) && /Killer/i.test(e.text));
-  assert.ok(revealed, "the log names the banished player's role");
+  // Banish a villager so the game continues and we can inspect the banish log.
+  dayVote(room, { K: "V1", V1: "V1", V2: "V1", V3: "V1" });
+  assert.equal(isAlive(room, "V1"), false, "the voted player is banished");
+  const banishLog = room.log.find((e) => /drives|cast out|banished|run out/i.test(e.text));
+  assert.ok(banishLog, "a banishment is narrated");
+  assert.ok(!/villager/i.test(banishLog!.text), "the banished player's role is NOT named");
 });
 
 /* ----------------------------- AFK / God skip ---------------------------- */

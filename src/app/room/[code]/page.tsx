@@ -562,10 +562,11 @@ function HelpModal({ onClose }: { onClose: () => void }) {
               <div>
                 <h3 className="font-bold text-white">☀️ Day</h3>
                 <p className="mt-1">
-                  Morning reveals who died (never their role). The town discusses in
-                  chat, then votes to <b>banish</b> one suspect from the village — whose
-                  role <b>is</b> revealed. (The day vote is an exile, not a killing.) Ties
-                  go to a Skip-or-Revote choice; a deadlock is broken by the God.
+                  Morning reveals who died — gruesomely, but <b>never</b> their role.
+                  The town discusses in chat, then votes to <b>banish</b> one suspect
+                  from the village. <b>No role is ever revealed</b> — not from a death,
+                  not from a banishment (only on the end-game screen). Ties go to a
+                  Skip-or-Revote choice; a deadlock is broken by the God.
                 </p>
               </div>
               <div>

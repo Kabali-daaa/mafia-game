@@ -113,16 +113,17 @@ Then everyone **votes** to **banish** a suspect from the village (the day vote i
 exile, not an execution — that's the Jester's dream, and the Killers' nightly murders
 are the real deaths).
 
-When everyone has voted — or the God taps **Resolve vote** — the result is applied,
-the banished player's role is **revealed**, and night falls again.
+When everyone has voted — or the God taps **Resolve vote** — the result is applied
+and night falls again. The banished player's role is **never revealed** — the town is
+left guessing (all roles are shown only on the end-game screen).
 
 ---
 
 ## Voting & ties
 
 - Each living player casts **one vote** (or **Skip**). The God sees a live tally.
-- The player with the **most votes is eliminated** — only **one** person per day.
-- Their role is **revealed** to everyone in the story log.
+- The player with the **most votes is banished** — only **one** person per day.
+- Their role is **never revealed** — no one learns what they were (until the game ends).
 
 ### Tie-break
 If two or more players tie for the most votes:
