@@ -12,12 +12,39 @@ html {
 }
 
 body {
+  /* Noir: a pool of candlelight fading into ink and smoke. */
   background:
-    radial-gradient(1200px 600px at 50% -10%, #3a3354 0%, transparent 60%),
-    linear-gradient(165deg, #2a2640 0%, #1b1925 55%, #131017 100%);
+    radial-gradient(1100px 520px at 50% -12%, #241a12 0%, transparent 62%),
+    radial-gradient(900px 700px at 88% 8%, rgba(163, 29, 29, 0.10) 0%, transparent 55%),
+    linear-gradient(170deg, #14100c 0%, #0c0a08 58%, #070504 100%);
   background-attachment: fixed;
   min-height: 100vh;
-  color: #ECEAF3;
+  color: #e7e1d4;
+}
+
+/* A vignette + fine film grain laid over everything for cinematic mood. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+/* Vignette — darken the edges of the frame. */
+body::before {
+  background: radial-gradient(120% 100% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+/* Film grain — a faint static texture (inline SVG turbulence). */
+body::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+}
+/* Keep app content above the atmosphere layers. */
+body > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* Dramatic role-reveal animations. */
@@ -33,20 +60,28 @@ body {
 @keyframes spin-slow {
   to { transform: rotate(360deg); }
 }
+/* A slow candlelight flicker for the brand mark / accents. */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  45% { opacity: 0.92; }
+  55% { opacity: 0.97; }
+  70% { opacity: 0.9; }
+}
 .reveal-pop { animation: reveal-pop 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .reveal-fade { animation: reveal-fade 0.6s ease-out 0.35s both; }
 .animate-spin-slow { animation: spin-slow 1.4s linear infinite; }
+.animate-flicker { animation: flicker 4s ease-in-out infinite; }
 
-/* Slim, soft scrollbars to match the dark UI. */
+/* Slim, gold-tinted scrollbars to match the noir UI. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-color: rgba(201, 162, 74, 0.25) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(201, 162, 74, 0.25);
   border-radius: 999px;
 }

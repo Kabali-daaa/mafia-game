@@ -51,21 +51,26 @@ export default function Home() {
   return (
     <div className="mx-auto flex min-h-[80vh] w-full max-w-md flex-col justify-center gap-6">
       <header className="text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-3xl shadow-lg shadow-violet-900/40">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-gold to-gold-deep text-3xl text-ink-900 shadow-lg shadow-black/60 ring-1 ring-gold/40 animate-flicker">
           🎭
         </div>
-        <h1 className="text-4xl font-extrabold tracking-tight">Mafia</h1>
-        <p className="mt-2 text-sm text-white/60">
+        <h1 className="font-display text-5xl font-black uppercase tracking-[0.15em] text-bone">
+          Mafia
+        </h1>
+        <p className="mt-3 text-sm italic text-gold/60">
+          Trust no one after dark.
+        </p>
+        <p className="mt-1 text-sm text-white/55">
           A real-time party game. One host narrates; everyone else plays.
         </p>
       </header>
 
-      <div className="rounded-3xl bg-[#181820]/80 p-5 ring-1 ring-white/10 backdrop-blur">
+      <div className="rounded-3xl bg-ink-700/80 p-5 ring-1 ring-gold/15 backdrop-blur">
         <label className="block text-xs font-semibold uppercase tracking-wide text-white/50">
           Your name
         </label>
         <input
-          className="mt-2 w-full rounded-2xl bg-white/5 px-4 py-3 text-lg font-medium outline-none ring-1 ring-white/10 transition focus:ring-2 focus:ring-violet-400"
+          className="mt-2 w-full rounded-2xl bg-white/5 px-4 py-3 text-lg font-medium outline-none ring-1 ring-gold/15 transition focus:ring-2 focus:ring-gold"
           placeholder="e.g. Alex"
           value={name}
           maxLength={20}
@@ -75,7 +80,7 @@ export default function Home() {
         <button
           onClick={create}
           disabled={busy}
-          className="mt-5 w-full rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 py-3.5 font-bold text-white shadow-lg shadow-violet-900/40 transition hover:opacity-90 active:scale-[0.99] disabled:opacity-50"
+          className="mt-5 w-full rounded-2xl bg-gradient-to-r from-blood to-blood-deep py-3.5 font-bold text-white shadow-lg shadow-black/60 transition hover:opacity-90 active:scale-[0.99] disabled:opacity-50"
         >
           {busy ? "Please wait…" : "Host a new game"}
         </button>
@@ -88,7 +93,7 @@ export default function Home() {
 
         <div className="flex gap-2">
           <input
-            className="min-w-0 flex-1 rounded-2xl bg-white/5 px-4 py-3 text-center text-xl font-bold uppercase tracking-[0.3em] outline-none ring-1 ring-white/10 transition focus:ring-2 focus:ring-cyan-400"
+            className="min-w-0 flex-1 rounded-2xl bg-white/5 px-4 py-3 text-center text-xl font-bold uppercase tracking-[0.3em] outline-none ring-1 ring-gold/15 transition focus:ring-2 focus:ring-steel"
             placeholder="CODE"
             value={code}
             maxLength={4}
@@ -97,7 +102,7 @@ export default function Home() {
           <button
             onClick={join}
             disabled={busy}
-            className="shrink-0 rounded-2xl bg-cyan-400 px-6 font-bold text-[#10222a] transition hover:bg-cyan-300 active:scale-[0.99] disabled:opacity-50"
+            className="shrink-0 rounded-2xl bg-steel px-6 font-bold text-ink-900 transition hover:bg-steel-soft active:scale-[0.99] disabled:opacity-50"
           >
             Join
           </button>
