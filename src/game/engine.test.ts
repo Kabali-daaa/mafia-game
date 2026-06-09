@@ -203,12 +203,23 @@ test("the Town wins when the last Killer is voted out", () => {
   assert.equal(room.winner, "town");
 });
 
-test("the Killers win when they reach parity at night", () => {
-  const room = setup({ K: "killer", V1: "villager", V2: "villager" }); // 1 killer, 2 town
-  runNight(room, { K: ["V1"] }); // → 1 killer vs 1 town
-  assert.equal(checkWinner(room), "mafia");
+test("the end-game story reveals every player's role (the masks come off)", () => {
+  const room = setup({ K: "killer", V1: "villager", V2: "villager", V3: "villager" });
+  dayVote(room, { K: "K", V1: "K", V2: "K", V3: "K" }); // town wins
+  const reveal = room.log.find((e) => /masks come off/i.test(e.text));
+  assert.ok(reveal, "an end-game reveal line is logged");
+  assert.ok(/K \(.*Killer\)/.test(reveal!.text), "names map to roles, e.g. K (Killer)");
+  assert.ok(/Villager/i.test(reveal!.text), "villagers are revealed too");
+});
+
+test("the Killers win at parity, and the whole Killer team is named", () => {
+  const room = setup({ K: "killer", GF: "godfather", V1: "villager", V2: "villager", V3: "villager" });
+  runNight(room, { K: ["V1"], GF: ["V1"] }); // squad kill → K,GF vs V2,V3 = 2-vs-2 parity
   assert.equal(room.winner, "mafia");
   assert.equal(room.phase, "ended");
+  const roll = room.log.find((e) => /Victory to the Killers/i.test(e.text));
+  assert.ok(roll, "the Killer team is called out by name");
+  assert.ok(/K/.test(roll!.text) && /GF/.test(roll!.text), "both Killers are named");
 });
 
 test("the Jester wins instantly if the town votes them out", () => {
