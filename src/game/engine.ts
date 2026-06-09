@@ -500,6 +500,8 @@ function narrateMorning(dead: string[]): string {
       "🌫️ The fog lifts on an empty graveyard. Against all odds, no one died.",
       "🌅 No bodies this morning. The village holds its breath, waiting for the next.",
       "🌙 The dark spared them all tonight. It rarely does twice.",
+      "🌑 Nothing stirred in the night — yet every door was found unlocked by dawn.",
+      "🕯️ Not one corpse this morning. The candles all burned out at the same hour, though.",
     ]);
   }
   // One distinct cause per victim — all role-agnostic so nothing is given away.
@@ -524,6 +526,21 @@ function narrateMorning(dead: string[]): string {
     "was left bled white, two neat punctures at the neck",
     "was found kneeling in prayer — and missing their head",
     "was crushed by something no one will name",
+    "was found with their fingernails torn out, clawing at the door",
+    "drowned in their own bed, lungs full of black water",
+    "was split open from throat to navel",
+    "was left as a pile of ash in the shape of a person",
+    "was nailed to the barn wall, long cold",
+    "was found with their mouth sewn shut and their eyes gone",
+    "was peeled and left out in the frost",
+    "had every bone broken, folded into a shape no body should make",
+    "was frozen solid in the middle of summer",
+    "was hollowed out — nothing left inside the skin",
+    "was found whispering to the wall, then fell silent forever",
+    "was bitten clean through, the wound far too wide for any man",
+    "was found pinned to the earth by their own shadow",
+    "choked on soil, mouth and throat packed with grave-dirt",
+    "was unstitched at every seam, as if something crawled out",
   ];
   // Pick distinct causes for the victims.
   const pool = [...causes];
@@ -540,6 +557,8 @@ function narrateMorning(dead: string[]): string {
       `🌫️ As the fog clears, a horror waits in the square — ${lines[0]}.`,
       `💀 Morning. ${lines[0]}. No one saw a thing.`,
       `🌙 The night took one of them: ${lines[0]}.`,
+      `🩸 The bells toll for the dead at first light — ${lines[0]}.`,
+      `🕯️ A scream, then silence. By morning, ${lines[0]}.`,
     ]);
   }
   const opener = pick([
@@ -547,6 +566,8 @@ function narrateMorning(dead: string[]): string {
     `💀 The dawn reveals a massacre; ${dead.length} bodies:`,
     `🌫️ ${dead.length} did not live to see the morning:`,
     `🕯️ The village counts its dead, and weeps:`,
+    `🩸 Blood runs in the gutters this morning — ${dead.length} fell:`,
+    `💀 ${dead.length} empty beds, ${dead.length} cold bodies. The dark feasted:`,
   ]);
   return `${opener} ${lines.join("; ")}.`;
 }
@@ -821,8 +842,9 @@ export function resolveGodChoice(room: Room, decision: string): void {
   else eliminate(room, null); // "skip"
 }
 
-// If one Lover is banished, the other dies too — narrated WITHOUT revealing the
-// bond (no "Lover" wording), so nobody's role/status is given away.
+// If one Lover is banished, the other dies too. CRITICAL: this is narrated as a
+// plain, standalone murder — NO "moments later / too / in the same breath" linkage
+// and no "Lover" wording — so regular players can't infer the bond from the story.
 function applyLynchLovers(room: Room, deadId: string): void {
   const lovers = room.roleState.lovers;
   if (!lovers) return;
@@ -836,9 +858,11 @@ function applyLynchLovers(room: Room, deadId: string): void {
       phase: "day",
       day: room.day,
       text: pick([
-        `🩸 Moments later, ${p.name} was found lifeless too — no wound, no reason anyone dares name.`,
-        `💀 As the village turned away, ${p.name} simply collapsed, dead before they hit the ground.`,
-        `🌫️ Then ${p.name} dropped without a sound — as if the dark had claimed them in the same breath.`,
+        `🩸 ${p.name} is found dead in the crowd — a blade in the back, and no one saw the hand.`,
+        `💀 ${p.name} drops where they stand, lifeless before they hit the ground.`,
+        `🔪 ${p.name} is discovered slumped against the gate, throat opened to the bone.`,
+        `🌫️ ${p.name} crumples without a sound, gone before anyone can reach them.`,
+        `🩸 ${p.name} is found cold in a spreading red pool, the killer long melted into the crowd.`,
       ]),
     });
   }
