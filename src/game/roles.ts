@@ -243,7 +243,7 @@ export const ROLES: Record<string, RoleDef> = {
     emoji: "🏛️",
     // NOTE: immunity is enforced in engine.ts (computeDeaths skips them while a Cupid lives).
     description:
-      "The village head. The Killers cannot eliminate them at night while a Cupid is still alive. (Still lynchable by day.)",
+      "The village head. The Killers cannot eliminate them at night while a Cupid is still alive. (Can still be voted out by day.)",
   },
 
   item: {
@@ -306,7 +306,7 @@ export const ROLES: Record<string, RoleDef> = {
     winsIfLynched: true,
     emoji: "🤡",
     description:
-      "Plays alone. The Jester's only goal is to get voted out by the town — if lynched, the Jester wins the game.",
+      "A lone trickster who secretly dreams of being banished to live free in the forest — so their only goal is to get the town to vote them out. Win that daytime vote and they're free (and win the game). Being murdered by the Killers at night is the one fate they dread.",
   },
 };
 

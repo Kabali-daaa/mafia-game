@@ -246,6 +246,16 @@ test("cross-team Lovers (Cop + Killer) win as the last two standing", () => {
   assert.equal(room.phase, "ended");
 });
 
+test("a Jester linked as a Lover counts as cross-team and can win via the couple", () => {
+  const room = setup({ Cup: "cupid", J: "jester", V: "villager", K: "killer" });
+  // Cupid links the Jester (neutral) to a Villager (town); the Killer kills Cupid.
+  runNight(room, { Cup: ["J", "V"], K: ["Cup"] });
+  assert.equal(room.phase, "day", "J, V, K still alive — no winner yet");
+  // Vote out the Killer, leaving only the Jester + Villager couple.
+  dayVote(room, { J: "K", V: "K", K: "J" });
+  assert.equal(room.winner, "lovers", "Jester (neutral) + Villager (town) win as a cross-team couple");
+});
+
 /* --------------------------------- item ---------------------------------- */
 
 test("the Item dies if it spends the night with a Killer", () => {
@@ -308,8 +318,8 @@ test("a 2–2 tie opens the choice stage, and a Skip majority spares everyone", 
 test("a day elimination reveals the victim's role in the story log", () => {
   const room = setup({ K: "killer", V1: "villager", V2: "villager", V3: "villager" });
   dayVote(room, { K: "K", V1: "K", V2: "K", V3: "K" });
-  const revealed = room.log.some((e) => /voted out/i.test(e.text) && /Killer/i.test(e.text));
-  assert.ok(revealed, "the log names the lynched player's role");
+  const revealed = room.log.some((e) => /banished/i.test(e.text) && /Killer/i.test(e.text));
+  assert.ok(revealed, "the log names the banished player's role");
 });
 
 /* ------------------------------- privacy --------------------------------- */
