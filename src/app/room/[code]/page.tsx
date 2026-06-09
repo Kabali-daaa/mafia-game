@@ -87,15 +87,16 @@ const RoleViz = createContext<{ visible: boolean; toggle: () => void }>({
   toggle: () => {},
 });
 
+// Muted, metallic noir avatar tones — candlelight gold, pewter, blood, moonlight.
 const AVATAR_GRADIENTS = [
-  "from-amber-400 to-orange-500",
-  "from-violet-400 to-fuchsia-500",
-  "from-cyan-400 to-sky-500",
-  "from-emerald-400 to-teal-500",
-  "from-rose-400 to-pink-500",
-  "from-indigo-400 to-violet-500",
-  "from-lime-400 to-emerald-500",
-  "from-fuchsia-400 to-purple-500",
+  "from-amber-300 to-amber-600",
+  "from-stone-300 to-stone-500",
+  "from-steel-soft to-steel",
+  "from-rose-300 to-rose-700",
+  "from-yellow-600 to-amber-800",
+  "from-zinc-400 to-zinc-600",
+  "from-orange-300 to-rose-600",
+  "from-slate-400 to-slate-700",
 ];
 function gradientFor(name: string) {
   let h = 0;
@@ -125,10 +126,10 @@ function Avatar({
 
 function teamAccentText(team: string) {
   return team === "mafia"
-    ? "text-rose-300"
+    ? "text-blood-soft"
     : team === "neutral"
-      ? "text-amber-300"
-      : "text-cyan-300";
+      ? "text-gold-soft"
+      : "text-steel-soft";
 }
 
 function Card({
@@ -139,7 +140,7 @@ function Card({
   className?: string;
 }) {
   return (
-    <section className={`rounded-3xl bg-[#181820] p-5 ring-1 ring-white/10 ${className}`}>
+    <section className={`rounded-3xl bg-ink-700 p-5 ring-1 ring-gold/15 ${className}`}>
       {children}
     </section>
   );
@@ -147,7 +148,7 @@ function Card({
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-white/45">
+    <h2 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-gold/70">
       {children}
     </h2>
   );
@@ -256,41 +257,45 @@ function RoleReveal({ role, onDone }: { role: RoleDef | null; onDone: () => void
       ? "shadow-rose-500/50"
       : role.team === "neutral"
         ? "shadow-amber-400/50"
-        : "shadow-cyan-400/50";
+        : "shadow-steel/40";
   const ring =
     role.team === "mafia"
       ? "ring-rose-400/60"
       : role.team === "neutral"
         ? "ring-amber-300/60"
-        : "ring-cyan-300/60";
+        : "ring-steel/60";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6 backdrop-blur-sm">
       {stage === 0 ? (
         <div className="text-center">
-          <div className="text-2xl font-semibold text-white/70 animate-pulse">
-            Dealing your role…
+          <div className="font-display text-2xl font-semibold uppercase tracking-[0.3em] text-gold-soft animate-pulse">
+            Dealing your fate…
           </div>
           <div className="mt-6 text-6xl animate-spin-slow">🎭</div>
         </div>
       ) : (
         <div className="flex flex-col items-center text-center">
-          <div className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-white/50 reveal-fade">
+          <div className="mb-5 font-display text-sm font-semibold uppercase tracking-[0.4em] text-gold-soft reveal-fade">
             You are the
           </div>
           <div
-            className={`reveal-pop flex flex-col items-center rounded-[2rem] bg-[#15151d] px-10 py-10 shadow-2xl ${glow} ring-2 ${ring}`}
+            className={`reveal-pop relative flex w-72 flex-col items-center rounded-2xl border border-gold/40 bg-ink-900 px-8 py-10 shadow-2xl ${glow} ring-1 ${ring}`}
           >
+            {/* corner pips for the playing-card feel */}
+            <span className="absolute left-3 top-2 text-lg text-gold/60">♠</span>
+            <span className="absolute bottom-2 right-3 rotate-180 text-lg text-gold/60">♠</span>
+            <div className="pointer-events-none absolute inset-2 rounded-xl border border-gold/15" />
             <div className="text-7xl drop-shadow-lg">{role.emoji}</div>
-            <div className="mt-3 text-4xl font-black">{role.name}</div>
-            <div className={`mt-1 text-sm font-bold uppercase tracking-widest ${teamAccentText(role.team)}`}>
+            <div className="mt-4 font-display text-3xl font-black tracking-wide">{role.name}</div>
+            <div className={`mt-2 text-xs font-bold uppercase tracking-[0.3em] ${teamAccentText(role.team)}`}>
               {teamLabel(role.team)}
             </div>
             <p className="mt-4 max-w-xs text-sm text-white/65">{role.description}</p>
           </div>
           <button
             onClick={onDone}
-            className="reveal-fade mt-8 rounded-2xl bg-white/15 px-8 py-3 font-bold ring-1 ring-white/20 transition hover:bg-white/25"
+            className="reveal-fade mt-8 rounded-2xl bg-white/10 px-8 py-3 font-bold text-bone ring-1 ring-gold/25 transition hover:bg-white/20"
           >
             🙈 Got it — hide my role
           </button>
@@ -331,7 +336,7 @@ function SideNav({
 }) {
   return (
     <nav className="hidden w-52 shrink-0 lg:block">
-      <div className="sticky top-6 space-y-1 rounded-3xl bg-[#181820] p-3 ring-1 ring-white/10">
+      <div className="sticky top-6 space-y-1 rounded-3xl bg-ink-700 p-3 ring-1 ring-gold/15">
         {tabs.map((t) => {
           const on = t === active;
           return (
@@ -340,7 +345,7 @@ function SideNav({
               onClick={() => onChange(t)}
               className={`flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left font-semibold transition ${
                 on
-                  ? "bg-violet-500/20 text-violet-200 ring-1 ring-violet-400/30"
+                  ? "bg-gold/15 text-gold-soft ring-1 ring-gold/40"
                   : "text-white/55 hover:bg-white/5 hover:text-white/80"
               }`}
             >
@@ -369,7 +374,7 @@ function BottomNav({
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 lg:hidden">
       <div className="mx-auto max-w-md px-4 pb-4">
-        <div className="flex items-stretch justify-around gap-1 rounded-3xl bg-[#1c1c26]/95 p-2 shadow-2xl shadow-black/40 ring-1 ring-white/10 backdrop-blur">
+        <div className="flex items-stretch justify-around gap-1 rounded-3xl bg-ink-800/95 p-2 shadow-2xl shadow-black/40 ring-1 ring-gold/15 backdrop-blur">
           {tabs.map((t) => {
             const on = t === active;
             return (
@@ -380,14 +385,14 @@ function BottomNav({
               >
                 <span
                   className={`flex h-9 w-14 items-center justify-center rounded-2xl text-lg transition ${
-                    on ? "bg-violet-500 shadow-lg shadow-violet-900/40" : "opacity-50"
+                    on ? "bg-gold shadow-lg shadow-black/60" : "opacity-50"
                   }`}
                 >
                   {TAB_META[t].icon}
                 </span>
                 <span
                   className={`text-[11px] font-bold ${
-                    on ? "text-violet-300" : "text-white/45"
+                    on ? "text-gold-soft" : "text-white/45"
                   }`}
                 >
                   {TAB_META[t].label}
@@ -409,25 +414,25 @@ function Header({ view }: { view: RoomView }) {
   const { visible, toggle } = useContext(RoleViz);
   const [showHelp, setShowHelp] = useState(false);
   const phase: Record<string, { label: string; cls: string }> = {
-    lobby: { label: "Lobby", cls: "bg-white/10 text-white/80" },
-    night: { label: `🌙 Night ${view.day}`, cls: "bg-indigo-500/25 text-indigo-200" },
-    witch: { label: "🧙 The Witch stirs", cls: "bg-purple-500/25 text-purple-200" },
-    day: { label: `☀️ Day ${view.day}`, cls: "bg-amber-500/25 text-amber-200" },
-    ended: { label: "Game over", cls: "bg-emerald-500/25 text-emerald-200" },
+    lobby: { label: "Lobby", cls: "bg-white/10 text-bone/80" },
+    night: { label: `🌙 Night ${view.day}`, cls: "bg-steel-deep/40 text-steel-soft ring-1 ring-steel/30" },
+    witch: { label: "🧙 The Witch stirs", cls: "bg-steel-deep/40 text-steel-soft ring-1 ring-steel/30" },
+    day: { label: `☀️ Day ${view.day}`, cls: "bg-gold/15 text-gold-soft ring-1 ring-gold/30" },
+    ended: { label: "Game over", cls: "bg-blood/20 text-blood-soft ring-1 ring-blood/40" },
   };
   const p = phase[view.phase];
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-[#181820] p-4 ring-1 ring-white/10 sm:p-5">
+    <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-ink-700 p-4 ring-1 ring-gold/15 sm:p-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xl">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-gold to-gold-deep text-xl text-ink-900 shadow-lg shadow-black/50 ring-1 ring-gold/40 animate-flicker">
           🎭
         </div>
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/60">
             Room code
           </div>
-          <div className="text-2xl font-extrabold tracking-[0.25em]">{view.code}</div>
+          <div className="font-display text-2xl font-extrabold tracking-[0.3em] text-bone">{view.code}</div>
         </div>
       </div>
 
@@ -485,11 +490,11 @@ function HelpModal({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl bg-[#15151d] ring-1 ring-white/10 sm:rounded-3xl"
+        className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl bg-ink-900 ring-1 ring-gold/15 sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3 border-b border-white/10 p-4">
-          <h2 className="text-lg font-extrabold">📖 How to play</h2>
+          <h2 className="font-display text-lg font-extrabold text-bone">📖 How to play</h2>
           <button
             onClick={onClose}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg transition hover:bg-white/20"
@@ -505,7 +510,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
               onClick={() => setTab(t)}
               className={`flex-1 rounded-2xl px-4 py-2 text-sm font-bold transition ${
                 tab === t
-                  ? "bg-violet-500/25 text-violet-200 ring-1 ring-violet-400/30"
+                  ? "bg-gold/20 text-gold-soft ring-1 ring-gold/40"
                   : "text-white/55 hover:bg-white/5"
               }`}
             >
@@ -609,7 +614,7 @@ function SharePanel({ code }: { code: string }) {
   };
 
   return (
-    <div className="mt-4 flex flex-col items-center gap-4 rounded-2xl bg-white/[0.04] p-4 ring-1 ring-white/10 sm:flex-row sm:items-center">
+    <div className="mt-4 flex flex-col items-center gap-4 rounded-2xl bg-white/[0.04] p-4 ring-1 ring-gold/15 sm:flex-row sm:items-center">
       {joinUrl && (
         <div className="shrink-0 rounded-2xl bg-white p-2.5">
           <QRCodeSVG value={joinUrl} size={104} level="M" />
@@ -619,11 +624,11 @@ function SharePanel({ code }: { code: string }) {
         <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
           Scan to join — or share the link
         </div>
-        <div className="mt-1 text-2xl font-extrabold tracking-[0.3em]">{code}</div>
+        <div className="mt-1 font-display text-2xl font-extrabold tracking-[0.3em] text-bone">{code}</div>
         <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
           <button
             onClick={share}
-            className="rounded-2xl bg-cyan-400/15 px-4 py-2 text-sm font-bold text-cyan-200 ring-1 ring-cyan-400/30 transition hover:bg-cyan-400/25"
+            className="rounded-2xl bg-steel/15 px-4 py-2 text-sm font-bold text-steel-soft ring-1 ring-steel/40 transition hover:bg-steel/25"
           >
             {copied === "link" ? "Link copied!" : "🔗 Share link"}
           </button>
@@ -652,7 +657,7 @@ function Lobby({ view }: { view: RoomView }) {
   return (
     <Card>
       <div>
-        <h2 className="text-xl font-extrabold">Lobby</h2>
+        <h2 className="font-display text-xl font-extrabold text-bone">Lobby</h2>
         <p className="mt-0.5 text-sm text-white/55">
           {playerCount} player{playerCount === 1 ? "" : "s"} joined (excluding the host).
         </p>
@@ -711,7 +716,7 @@ function Lobby({ view }: { view: RoomView }) {
           })}
           <button
             onClick={() => sendAction(view.code, "start")}
-            className="mt-3 w-full rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 py-3.5 font-bold shadow-lg shadow-violet-900/40 transition hover:opacity-90 active:scale-[0.99]"
+            className="mt-3 w-full rounded-2xl bg-gradient-to-r from-blood to-blood-deep py-3.5 font-bold shadow-lg shadow-black/60 transition hover:opacity-90 active:scale-[0.99]"
           >
             Start game
           </button>
@@ -779,7 +784,7 @@ function ActionPanel({ view }: { view: RoomView }) {
               sendAction(view.code, "choice", { choice: c.id });
               setSent(true);
             }}
-            className="rounded-2xl bg-white/5 px-4 py-4 font-bold ring-1 ring-white/10 transition hover:bg-white/10 active:scale-[0.98]"
+            className="rounded-2xl bg-white/5 px-4 py-4 font-bold ring-1 ring-gold/15 transition hover:bg-white/10 active:scale-[0.98]"
           >
             {c.label}
           </button>
@@ -799,8 +804,8 @@ function ActionPanel({ view }: { view: RoomView }) {
               onClick={() => toggle(p.id)}
               className={`flex flex-col items-center gap-2 rounded-2xl px-2 py-3 ring-1 transition active:scale-[0.97] ${
                 on
-                  ? "bg-violet-500/30 ring-violet-400"
-                  : "bg-white/5 ring-white/10 hover:bg-white/10"
+                  ? "bg-gold/25 ring-gold"
+                  : "bg-white/5 ring-gold/15 hover:bg-white/10"
               }`}
             >
               <Avatar name={p.name} size={40} />
@@ -821,7 +826,7 @@ function ActionPanel({ view }: { view: RoomView }) {
         <button
           disabled={picked.length !== need}
           onClick={() => submit(picked)}
-          className="flex-1 rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 py-3.5 font-bold transition hover:opacity-90 active:scale-[0.99] disabled:opacity-40"
+          className="flex-1 rounded-2xl bg-gradient-to-r from-blood to-blood-deep py-3.5 font-bold transition hover:opacity-90 active:scale-[0.99] disabled:opacity-40"
         >
           Confirm
         </button>
@@ -853,7 +858,7 @@ function PhaseHeading({ emoji, title }: { emoji: string; title: string }) {
   return (
     <div className="flex items-center gap-3">
       <span className="text-3xl">{emoji}</span>
-      <h2 className="text-xl font-extrabold">{title}</h2>
+      <h2 className="font-display text-xl font-extrabold text-bone">{title}</h2>
     </div>
   );
 }
@@ -873,7 +878,7 @@ function NightPhase({ view }: { view: RoomView }) {
             <li
               key={i}
               className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm ring-1 ${
-                e.current ? "bg-indigo-500/15 ring-indigo-400/40" : "bg-white/[0.04] ring-white/10"
+                e.current ? "bg-indigo-500/15 ring-indigo-400/40" : "bg-white/[0.04] ring-gold/15"
               }`}
             >
               <span className="min-w-0">
@@ -1024,7 +1029,7 @@ function HostControls({ view }: { view: RoomView }) {
   return (
     <Card className="!bg-amber-400/10 ring-amber-400/30">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-extrabold text-amber-200">🎙️ God controls</h2>
+        <h2 className="font-display text-lg font-extrabold text-gold-soft">🎙️ God controls</h2>
         {status && (dayVoting || view.phase === "witch") && (
           <span className="rounded-full bg-amber-400/20 px-3 py-1 text-sm font-bold text-amber-100">
             {view.phase === "day" ? (stage === "choice" ? "Choice" : "Votes") : "Witch"}{" "}
@@ -1094,18 +1099,18 @@ function Ended({ view }: { view: RoomView }) {
   const won = view.winner;
   const conf =
     won === "town"
-      ? { emoji: "🎉", title: "Town wins!", cls: "from-cyan-500/30 to-emerald-500/20" }
+      ? { emoji: "🎉", title: "Town wins!", cls: "from-steel/25 to-steel-deep/30" }
       : won === "mafia"
-        ? { emoji: "💀", title: "Killers win!", cls: "from-rose-500/30 to-red-500/20" }
-        : { emoji: "🤡", title: "Neutral wins!", cls: "from-amber-500/30 to-orange-500/20" };
+        ? { emoji: "💀", title: "Killers win!", cls: "from-blood/30 to-blood-deep/30" }
+        : { emoji: "🤡", title: "Neutral wins!", cls: "from-gold/25 to-gold-deep/25" };
   // The whole game told back as a story, in order.
   const story = view.log.filter((e) => e.text.trim().length > 0);
 
   return (
     <div className="space-y-5">
-      <Card className={`bg-gradient-to-br ${conf.cls} text-center`}>
+      <Card className={`bg-gradient-to-br ${conf.cls} text-center ring-gold/25`}>
         <div className="text-5xl">{conf.emoji}</div>
-        <h2 className="mt-2 text-2xl font-extrabold">{conf.title}</h2>
+        <h2 className="mt-2 font-display text-3xl font-black uppercase tracking-wide text-bone">{conf.title}</h2>
         <p className="mt-1 text-white/65">Final roles are revealed in the roster.</p>
         {view.you.isHost && (
           <button
@@ -1245,7 +1250,7 @@ function ChatBox({
                 <div
                   className={`rounded-2xl px-3 py-2 text-sm ${
                     m.mine
-                      ? "bg-violet-500/35 text-white"
+                      ? "bg-gold/30 text-white"
                       : isKillers
                         ? "bg-black/25 text-white/90"
                         : "bg-white/8 text-white/90"
@@ -1268,12 +1273,12 @@ function ChatBox({
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder={placeholder}
           maxLength={500}
-          className="min-w-0 flex-1 rounded-2xl bg-white/5 px-3.5 py-2.5 text-sm outline-none ring-1 ring-white/10 transition focus:ring-2 focus:ring-violet-400 disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-2xl bg-white/5 px-3.5 py-2.5 text-sm outline-none ring-1 ring-gold/15 transition focus:ring-2 focus:ring-gold disabled:opacity-50"
         />
         <button
           onClick={send}
           disabled={!canPost || !text.trim()}
-          className="shrink-0 rounded-2xl bg-violet-500 px-4 py-2.5 text-sm font-bold transition hover:bg-violet-400 disabled:opacity-40"
+          className="shrink-0 rounded-2xl bg-gold px-4 py-2.5 text-sm font-bold transition hover:bg-gold disabled:opacity-40"
         >
           Send
         </button>
@@ -1305,7 +1310,7 @@ function Roster({ view }: { view: RoomView }) {
           return (
             <li
               key={p.id}
-              className={`flex items-center gap-2.5 rounded-2xl px-3 py-2 ring-1 ring-white/10 ${
+              className={`flex items-center gap-2.5 rounded-2xl px-3 py-2 ring-1 ring-gold/15 ${
                 p.alive ? "bg-white/[0.05]" : "bg-white/[0.02]"
               }`}
             >
