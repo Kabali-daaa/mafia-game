@@ -958,6 +958,31 @@ function endGame(room: Room, winner: Winner, message?: string): void {
           : "🤡 The Neutral player wins!");
   room.log.push({ phase: "ended", day: room.day, text });
 
+  // Name the victorious side out loud — e.g. reveal the whole Killer team.
+  const winLabel =
+    winner === "mafia" ? "the Killers"
+    : winner === "town" ? "the Town"
+    : winner === "lovers" ? "the Lovers"
+    : "the Jester";
+  let winners: string[];
+  if (winner === "lovers" && room.roleState.lovers) {
+    winners = room.roleState.lovers.map((id) => nameOf(room, id));
+  } else if (winner === "neutral") {
+    winners = room.players
+      .filter((p) => !p.isHost && getRole(p.roleId)?.team === "neutral")
+      .map((p) => p.name);
+  } else {
+    winners = room.players
+      .filter((p) => !p.isHost && teamOf(room, p.id) === winner)
+      .map((p) => p.name);
+  }
+  if (winners.length)
+    room.log.push({
+      phase: "ended",
+      day: room.day,
+      text: `🏆 Victory to ${winLabel}: ${winners.join(", ")}.`,
+    });
+
   // A closing line for the end-of-game story.
   const survivors = alivePlayers(room).map((p) => p.name);
   const closer =
@@ -972,6 +997,22 @@ function endGame(room: Room, winner: Winner, message?: string): void {
     ? ` Left standing: ${survivors.join(", ")}.`
     : " Not a single soul remained.";
   room.log.push({ phase: "ended", day: room.day, text: closer + roll });
+
+  // The masks come off — now (and ONLY now) every player's true role is told in
+  // the story itself, e.g. "Karthi (🔪 Killer)".
+  const reveal = room.players
+    .filter((p) => !p.isHost)
+    .map((p) => {
+      const r = getRole(p.roleId);
+      return `${p.name} (${r?.emoji ?? ""} ${r?.name ?? "Unknown"})`;
+    })
+    .join(", ");
+  if (reveal)
+    room.log.push({
+      phase: "ended",
+      day: room.day,
+      text: `🎭 The masks come off — ${reveal}.`,
+    });
 }
 
 export function resetToLobby(room: Room): void {
