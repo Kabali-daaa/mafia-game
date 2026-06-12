@@ -67,6 +67,10 @@ export interface RoomView {
 export interface NightControl {
   board: NightBoardEntry[];
   nextLabel: string | null; // label of the next step, or null on the last step
+  currentLabel: string | null; // the role-group being called right now (e.g. "🔪 Killers")
+  // Connected, alive members of the current group who still haven't acted. While
+  // this is > 0 the God can't advance — they must wait or skip these players.
+  waitingCount: number;
 }
 
 export interface NightBoardEntry {

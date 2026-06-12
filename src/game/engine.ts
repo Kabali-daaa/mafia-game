@@ -1260,10 +1260,17 @@ export function buildView(room: Room, viewerId: string): RoomView {
     voteStage: room.phase === "day" ? room.voteStage : null,
     // Public: which role-group the host is currently calling.
     nightStepLabel: cur ? `${cur.emoji} ${cur.label}` : null,
-    // Host-only: the live night board + the "next" button label.
+    // Host-only: the live night board + the "next" button label + whether the
+    // current group is still being waited on (so the God isn't told "Next: Police"
+    // while the Killers haven't even voted).
     nightControl:
       isHost && room.phase === "night"
-        ? { board: buildNightBoard(room), nextLabel: next ? `${next.emoji} ${next.label}` : null }
+        ? {
+            board: buildNightBoard(room),
+            nextLabel: next ? `${next.emoji} ${next.label}` : null,
+            currentLabel: cur ? `${cur.emoji} ${cur.label}` : null,
+            waitingCount: currentStepBlockers(room).length,
+          }
         : null,
   };
 }

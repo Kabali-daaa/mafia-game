@@ -284,11 +284,11 @@ export const ROLES: Record<string, RoleDef> = {
     // them (engine.ts builds her target list + counts her uses). Max 2 saves.
     emoji: "🧙",
     description:
-      "Called after the Killers each night. You're shown who was attacked and may SAVE one of them — but you won't know if the Doctor already protected them. Only twice per game.",
+      "Called after the Killers each night. You're shown who was attacked and may SAVE one of them (but never yourself) — and you won't know if the Doctor already protected them. Only twice per game.",
     night: {
       order: 12, // a protector (applies before kills, like the Doctor)
-      prompt: "Someone was attacked tonight. Save one of them? (You won't know if the Doctor also protected them.)",
-      canTargetSelf: true,
+      prompt: "Someone was attacked tonight. Save one of them? (Not yourself — and you won't know if the Doctor also protected them.)",
+      canTargetSelf: false,
       canTargetDead: false,
       maxUses: 2,
     },
