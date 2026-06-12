@@ -1058,11 +1058,17 @@ function HostControls({ view }: { view: RoomView }) {
   const stage = view.voteStage;
   const isGodChoice = view.phase === "day" && stage === "godchoice";
 
+  const nc = view.nightControl;
+  // Night: while the current role-group still has someone who hasn't acted, the
+  // God can't advance — so say who we're waiting on instead of "Next: Police".
+  const nightWaiting = view.phase === "night" && !!nc && nc.waitingCount > 0;
   const label =
     view.phase === "night"
-      ? view.nightControl?.nextLabel
-        ? `Next: ${view.nightControl.nextLabel} →`
-        : "Resolve night 🌅"
+      ? nightWaiting
+        ? `⏳ Waiting for ${nc!.currentLabel ?? "players"}…`
+        : nc?.nextLabel
+          ? `Next: ${nc.nextLabel} →`
+          : "Resolve night 🌅"
       : view.phase === "witch"
         ? "Reveal morning →"
         : stage === "discussion"
@@ -1171,7 +1177,8 @@ function HostControls({ view }: { view: RoomView }) {
       ) : (
         <button
           onClick={() => sendAction(view.code, "advance")}
-          className="mt-4 w-full rounded-2xl bg-amber-400 py-3 font-bold text-[#2a1e00] transition hover:bg-amber-300 active:scale-[0.99]"
+          disabled={nightWaiting}
+          className="mt-4 w-full rounded-2xl bg-amber-400 py-3 font-bold text-[#2a1e00] transition hover:bg-amber-300 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-amber-400/30 disabled:text-[#2a1e00]/50"
         >
           {label}
         </button>
