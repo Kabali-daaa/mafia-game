@@ -186,13 +186,40 @@ function Room({ view }: { view: RoomView }) {
     if (!tabs.includes(tab)) setTab("game");
   }, [tabs, tab]);
 
-  // New-message notification for the Chat tab (cleared when you open chat).
+  // Per-tab "something new since you last looked" notifications. Each badge clears
+  // when you open that tab. New chat messages + new Story entries show a count; a
+  // pending action in the Game tab (your turn, or — for the God — the round ready
+  // to advance) shows a dot.
   const chatCount = view.chat.town.length + (view.chat.killers?.length ?? 0);
-  const [seen, setSeen] = useState(chatCount);
+  const [seenChat, setSeenChat] = useState(chatCount);
   useEffect(() => {
-    if (activeTab === "chat") setSeen(chatCount);
+    if (activeTab === "chat") setSeenChat(chatCount);
   }, [activeTab, chatCount]);
-  const unread = activeTab === "chat" ? 0 : Math.max(0, chatCount - seen);
+
+  const logCount = view.log.length;
+  const [seenLog, setSeenLog] = useState(logCount);
+  useEffect(() => {
+    if (activeTab === "log") setSeenLog(logCount);
+  }, [activeTab, logCount]);
+
+  // Is there something for this viewer to do in the Game tab right now?
+  const gameTodo = view.you.isHost
+    ? (view.phase === "night" && !!view.nightControl && view.nightControl.waitingCount === 0) ||
+      (view.phase === "day" &&
+        !!view.hostStatus &&
+        view.hostStatus.pending > 0 &&
+        view.hostStatus.acted === view.hostStatus.pending)
+    : !!view.prompt && !view.prompt.submitted;
+
+  const notif: Partial<Record<Tab, { count?: number; dot?: boolean }>> = {
+    chat:
+      activeTab !== "chat" && chatCount > seenChat
+        ? { count: chatCount - seenChat }
+        : undefined,
+    log:
+      activeTab !== "log" && logCount > seenLog ? { count: logCount - seenLog } : undefined,
+    game: activeTab !== "game" && gameTodo ? { dot: true } : undefined,
+  };
 
   // --- Role privacy + dramatic reveal ---
   const [roleVisible, setRoleVisible] = useState(false);
@@ -229,11 +256,11 @@ function Room({ view }: { view: RoomView }) {
         <Header view={view} />
 
         <div className="lg:flex lg:items-start lg:gap-5">
-          <SideNav tabs={tabs} active={activeTab} onChange={setTab} unread={unread} />
+          <SideNav tabs={tabs} active={activeTab} onChange={setTab} notif={notif} />
           <div className="min-w-0 flex-1 space-y-5 pb-28 lg:pb-0">{section}</div>
         </div>
 
-        <BottomNav tabs={tabs} active={activeTab} onChange={setTab} unread={unread} />
+        <BottomNav tabs={tabs} active={activeTab} onChange={setTab} notif={notif} />
       </div>
 
       {revealRoleId && (
@@ -326,13 +353,25 @@ const TAB_META: Record<Tab, { icon: string; label: string }> = {
   log: { icon: "📜", label: "Story" },
 };
 
-function UnreadBadge({ count, className = "" }: { count: number; className?: string }) {
-  if (count <= 0) return null;
+type Notif = { count?: number; dot?: boolean };
+
+// A per-tab notification: a small pulsing dot (e.g. "it's your turn to act") or a
+// count bubble (new chat messages / Story entries). Renders nothing when absent.
+function NotifBadge({ notif, className = "" }: { notif?: Notif; className?: string }) {
+  if (!notif) return null;
+  if (notif.dot) {
+    return (
+      <span
+        className={`h-2.5 w-2.5 animate-pulse rounded-full bg-rose-500 ring-2 ring-rose-500/30 ${className}`}
+      />
+    );
+  }
+  if (!notif.count || notif.count <= 0) return null;
   return (
     <span
       className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white ${className}`}
     >
-      {count > 9 ? "9+" : count}
+      {notif.count > 9 ? "9+" : notif.count}
     </span>
   );
 }
@@ -341,12 +380,12 @@ function SideNav({
   tabs,
   active,
   onChange,
-  unread,
+  notif,
 }: {
   tabs: Tab[];
   active: Tab;
   onChange: (t: Tab) => void;
-  unread: number;
+  notif: Partial<Record<Tab, Notif>>;
 }) {
   return (
     <nav className="hidden w-52 shrink-0 lg:block">
@@ -365,7 +404,7 @@ function SideNav({
             >
               <span className="text-lg">{TAB_META[t].icon}</span>
               <span>{TAB_META[t].label}</span>
-              {t === "chat" && <UnreadBadge count={unread} className="ml-auto" />}
+              <NotifBadge notif={notif[t]} className="ml-auto" />
             </button>
           );
         })}
@@ -378,12 +417,12 @@ function BottomNav({
   tabs,
   active,
   onChange,
-  unread,
+  notif,
 }: {
   tabs: Tab[];
   active: Tab;
   onChange: (t: Tab) => void;
-  unread: number;
+  notif: Partial<Record<Tab, Notif>>;
 }) {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 lg:hidden">
@@ -411,9 +450,7 @@ function BottomNav({
                 >
                   {TAB_META[t].label}
                 </span>
-                {t === "chat" && (
-                  <UnreadBadge count={unread} className="absolute right-2 top-0" />
-                )}
+                <NotifBadge notif={notif[t]} className="absolute right-2 top-0" />
               </button>
             );
           })}
