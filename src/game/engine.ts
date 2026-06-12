@@ -247,15 +247,18 @@ export function pendingNightActors(room: Room): Player[] {
 }
 
 // The host steps through the night one role-group at a time, in this order.
+// NOTE: the attackers (Killers / Psycho / Vigilante) MUST come before the Witch,
+// since she's shown who was attacked tonight. The Doctor & Police can be called
+// any time — their resolution priority lives in roles.ts (`night.order`), not here.
 const NIGHT_STEPS: { label: string; emoji: string; roles: string[] }[] = [
   { label: "Cupid", emoji: "💘", roles: ["cupid"] },
   { label: "Killers", emoji: "🔪", roles: ["killer", "godfather"] },
   { label: "Psycho Killer", emoji: "🪓", roles: ["psycho"] },
   { label: "Vigilante", emoji: "🔫", roles: ["vigilante"] },
-  { label: "Police", emoji: "🚓", roles: ["police"] },
-  { label: "Doctor", emoji: "🩺", roles: ["doctor"] },
   { label: "Item", emoji: "🎲", roles: ["item"] },
-  { label: "Witch", emoji: "🧙", roles: ["witch"] }, // last — she sees the attacks
+  { label: "Witch", emoji: "🧙", roles: ["witch"] }, // after the attackers — she sees the attacks
+  { label: "Doctor", emoji: "🩺", roles: ["doctor"] },
+  { label: "Police", emoji: "🚓", roles: ["police"] }, // last
 ];
 
 // The steps actually in play tonight (a role-group with ≥1 active alive member).
@@ -295,6 +298,18 @@ export function advanceNight(room: Room): void {
   const steps = nightSteps(room);
   if (room.nightStep >= steps.length - 1) resolveNight(room);
   else room.nightStep += 1;
+}
+
+// Members of the role-group the host is currently calling who are still CONNECTED
+// and alive but haven't submitted (nor skipped) yet. The God must not advance past
+// them — doing so silently drops their action (e.g. the Killers' kill never lands).
+// Disconnected players don't block (they can't act); the God can skip them via
+// hostSkip, which records an explicit "held back".
+export function currentStepBlockers(room: Room): Player[] {
+  if (room.phase !== "night") return [];
+  return alivePlayers(room).filter(
+    (p) => p.connected && actsInCurrentStep(room, p) && !(p.id in room.nightActions)
+  );
 }
 
 export function allNightActionsIn(room: Room): boolean {
@@ -1104,6 +1119,7 @@ export function resetToLobby(room: Room): void {
   room.day = 0;
   room.winner = null;
   room.nightActions = {};
+  room.nightStep = 0;
   room.votes = {};
   room.voteStage = "vote";
   room.tiedCandidates = [];
