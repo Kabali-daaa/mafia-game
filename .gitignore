@@ -10,3 +10,4 @@ screens/
 
 # Local Claude Code settings (machine-specific)
 .claude/settings.local.json
+tsconfig.tsbuildinfo

@@ -8,6 +8,7 @@ import {
   allVotesIn,
   beginNight,
   canStart,
+  currentStepBlockers,
   hostSkip,
   openVote,
   postChat,
@@ -147,7 +148,20 @@ export function applyAction(
     }
     case "advance": {
       if (!isHost) return;
-      if (room.phase === "night") advanceNight(room); // next role-group, or resolve on the last
+      if (room.phase === "night") {
+        // Guard: don't let the God advance past the current role-group while a
+        // connected, alive member still hasn't acted — that would silently drop
+        // their action (the bug where the Killers' kill never registered). The God
+        // must wait for them, or explicitly skip them (hostSkip) first.
+        const blockers = currentStepBlockers(room);
+        if (blockers.length > 0)
+          throw new GameError(
+            `Still waiting on ${blockers
+              .map((p) => p.name)
+              .join(", ")} to act. Wait for them, or skip them first.`
+          );
+        advanceNight(room); // next role-group, or resolve on the last
+      }
       else if (room.phase === "day") {
         if (room.voteStage === "discussion") openVote(room); // open the vote
         else if (room.voteStage === "done") beginNight(room); // start the night
