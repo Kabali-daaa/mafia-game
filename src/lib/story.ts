@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Room } from "@/game/engine";
 import { getRole } from "@/game/roles";
+import type { Player } from "@/lib/types";
 
 // gemini-2.5-flash-lite: fast, cheap, free-tier eligible, and returns prose
 // directly (the 2.0 models have 0 free quota; 2.5-flash spends the token budget
@@ -35,6 +36,25 @@ function actVerb(roleId: string | null): string {
   }
 }
 
+// A player's role over time: the roles they were shown acting as in the chronicle
+// (role-at-the-time), ending with their final role. Captures transformations like
+// the Psycho Killer who was healed into a Vigilante, so the recap honors the
+// timeline instead of back-dating the final role onto earlier nights.
+function roleArc(room: Room, player: Player): string {
+  const seen: string[] = [];
+  for (const sc of room.chronicle) {
+    if (sc.k !== "night") continue;
+    for (const a of sc.acts) {
+      if (a.name === player.name && a.roleId && !seen.includes(a.roleId)) seen.push(a.roleId);
+    }
+  }
+  // A Vigilante is only ever a transformed Psycho Killer (never dealt directly).
+  if (player.roleId === "vigilante" && !seen.includes("psycho")) seen.unshift("psycho");
+  if (player.roleId && !seen.includes(player.roleId)) seen.push(player.roleId);
+  if (seen.length === 0 && player.roleId) seen.push(player.roleId);
+  return seen.map(roleName).join(", later became ");
+}
+
 // A compact, factual brief of the whole game — every secret role, every night/day
 // event, and the winner — for the model to dramatize WITHOUT inventing anything.
 export function buildStoryFacts(room: Room): string {
@@ -42,7 +62,7 @@ export function buildStoryFacts(room: Room): string {
 
   const roster = room.players
     .filter((p) => !p.isHost)
-    .map((p) => `- ${p.name}: ${roleName(p.roleId)}${p.alive ? " (survived)" : " (died)"}`)
+    .map((p) => `- ${p.name}: ${roleArc(room, p)}${p.alive ? " (survived)" : " (died)"}`)
     .join("\n");
   out.push("PLAYERS AND THEIR SECRET ROLES:\n" + roster);
 
@@ -74,6 +94,13 @@ export function buildStoryFacts(room: Room): string {
       out.push(`Day ${sc.day}: ${sc.name} (${roleName(sc.roleId)}) died of heartbreak when their secret lover fell.`);
     }
   }
+
+  // Explicit final standing so the wrap-up never mislabels who lived or died.
+  const others = room.players.filter((p) => !p.isHost);
+  const survived = others.filter((p) => p.alive).map((p) => p.name);
+  const fell = others.filter((p) => !p.alive).map((p) => p.name);
+  out.push(`\nFINAL STANDING — survived: ${survived.join(", ") || "no one"}. Fell: ${fell.join(", ") || "no one"}.`);
+
   return out.join("\n");
 }
 
@@ -84,6 +111,7 @@ The game is OVER. Below are the TRUE facts: every player's secret role, everythi
 Rules:
 - Use the players' real names and reveal their true roles dramatically as the tale unfolds.
 - Follow the ACTUAL events in order, night by night and day by day. Never invent deaths, survivals, kills, saves, or roles that aren't in the facts.
+- The role shown beside each night's actions is the role that player held AT THAT MOMENT. A roster entry like "later became" means that player's role CHANGED mid-game — describe them by their earlier role on earlier nights, and reveal the transformation as a twist when it happens. Never back-date a later role onto an earlier night.
 - You may add vivid atmosphere, emotion and tension — but never contradict the facts.
 - Build to the climax and clearly crown the winning side at the end.
 - Keep it punchy: 4 to 7 short paragraphs. Begin with a short evocative TITLE on its very first line.
