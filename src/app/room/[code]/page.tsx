@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  type ReactNode,
   useContext,
   useEffect,
   useMemo,
@@ -23,7 +24,7 @@ import {
   type RoleDef,
   teamLabel,
 } from "@/game/roles";
-import type { ChatLine, PublicPlayer, RoomView } from "@/lib/types";
+import type { ActionPrompt, ChatLine, PublicPlayer, RoomView } from "@/lib/types";
 
 export default function RoomPage() {
   const params = useParams<{ code: string }>();
@@ -266,6 +267,9 @@ function Room({ view }: { view: RoomView }) {
       {revealRoleId && (
         <RoleReveal role={getRole(revealRoleId)} onDone={dismissReveal} />
       )}
+
+      {/* Players never miss their turn or a secret result — popped over everything. */}
+      {!view.you.isHost && !revealRoleId && <PlayerPopups view={view} />}
     </RoleViz.Provider>
   );
 }
@@ -343,6 +347,169 @@ function RoleReveal({ role, onDone }: { role: RoleDef | null; onDone: () => void
         </div>
       )}
     </div>
+  );
+}
+
+// A centered modal shell shared by the player popups + the God's confirm dialog.
+function Overlay({ children, z = "z-40" }: { children: ReactNode; z?: string }) {
+  return (
+    <div className={`fixed inset-0 ${z} flex items-center justify-center bg-black/80 p-6 backdrop-blur-sm`}>
+      <div className="w-full max-w-sm rounded-3xl bg-ink-700 p-6 shadow-2xl shadow-black/60 ring-1 ring-gold/20">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// A friendly title for the "it's your turn" popup, by action.
+function actionTitle(p: ActionPrompt): string {
+  if (p.kind === "vote") return "🗳️ Time to vote!";
+  if (p.kind === "choice") return "🤝 Your call";
+  switch (p.roleId) {
+    case "killer":
+    case "godfather":
+      return "🔪 Choose your victim";
+    case "psycho":
+      return "🪓 Your night to strike";
+    case "vigilante":
+      return "🔫 Take your shot";
+    case "police":
+      return "🚓 Investigate a suspect";
+    case "doctor":
+      return "🩺 Heal someone";
+    case "witch":
+      return "🧙 Save someone?";
+    case "cupid":
+      return "💘 Choose two lovers";
+    case "item":
+      return "🎲 Spend the night";
+    default:
+      return "🌙 Your move tonight";
+  }
+}
+
+// Full-screen popups that make sure a player never misses what they must see:
+//   1) a new private result (Police finding, Cupid's love note, Item visit), and
+//   2) their turn to act (vote / kill / heal / investigate / …).
+// The result is tap-gated (it can reveal your role) so a glance can't expose it.
+function PlayerPopups({ view }: { view: RoomView }) {
+  const prompt = view.prompt;
+  const actionable = !!prompt && !prompt.submitted;
+  const actionKey = `${view.phase}:${view.day}:${view.voteStage ?? ""}:${prompt?.roleId ?? prompt?.kind ?? ""}`;
+  const [dismissedAction, setDismissedAction] = useState("");
+
+  const msg = view.privateMessage ?? "";
+  const [seenMsg, setSeenMsg] = useState("");
+  const [msgOpen, setMsgOpen] = useState(false);
+  useEffect(() => setMsgOpen(false), [msg]);
+
+  // A new private result the player hasn't acknowledged yet — show it first.
+  if (msg && msg !== seenMsg) {
+    return (
+      <Overlay>
+        <div className="text-center text-4xl">📩</div>
+        <h3 className="mt-2 text-center font-display text-lg font-extrabold text-gold-soft">
+          A secret message for you
+        </h3>
+        {!msgOpen ? (
+          <>
+            <button
+              onClick={() => setMsgOpen(true)}
+              className="mt-4 w-full rounded-2xl bg-gold/15 px-4 py-3 text-sm font-semibold text-gold-soft ring-1 ring-gold/30 transition hover:bg-gold/25"
+            >
+              🔒 Tap to read
+            </button>
+            <p className="mt-2 text-center text-xs text-white/40">Make sure no one's looking.</p>
+          </>
+        ) : (
+          <p className="mt-4 rounded-2xl bg-gold/10 px-4 py-3 text-center text-sm font-medium text-bone ring-1 ring-gold/25">
+            {msg}
+          </p>
+        )}
+        <button
+          onClick={() => {
+            setSeenMsg(msg);
+            setMsgOpen(false);
+          }}
+          className="mt-4 w-full rounded-2xl bg-amber-400 py-3 font-bold text-[#2a1e00] transition hover:bg-amber-300"
+        >
+          Got it
+        </button>
+      </Overlay>
+    );
+  }
+
+  // It's the player's turn and they haven't acted (nor tapped "Later").
+  if (actionable && dismissedAction !== actionKey) {
+    return (
+      <Overlay>
+        <div className="text-center text-xs font-bold uppercase tracking-[0.3em] text-gold/60">
+          It's your turn
+        </div>
+        <h3 className="mt-2 text-center font-display text-xl font-extrabold text-bone">
+          {actionTitle(prompt!)}
+        </h3>
+        <p className="mt-2 text-center text-sm text-white/60">{prompt!.text}</p>
+        <ActionPanel view={view} />
+        <button
+          onClick={() => setDismissedAction(actionKey)}
+          className="mt-3 w-full rounded-2xl bg-white/5 py-2.5 text-sm font-semibold text-white/55 transition hover:bg-white/10"
+        >
+          Later
+        </button>
+      </Overlay>
+    );
+  }
+  return null;
+}
+
+// The God's "are you sure?" before skipping players who haven't finished a duty.
+function ConfirmModal({
+  title,
+  body,
+  names,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  body: string;
+  names: string[];
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Overlay z="z-50">
+      <div className="text-center text-4xl">⚠️</div>
+      <h3 className="mt-2 text-center font-display text-lg font-extrabold text-amber-100">{title}</h3>
+      <p className="mt-2 text-center text-sm text-white/70">{body}</p>
+      {names.length > 0 && (
+        <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+          {names.map((n, i) => (
+            <span key={i} className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/80">
+              {n}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="mt-5 flex gap-2.5">
+        <button
+          onClick={onCancel}
+          className="flex-1 rounded-2xl bg-white/10 py-3 font-bold text-white/80 ring-1 ring-white/15 transition hover:bg-white/20"
+        >
+          {cancelLabel}
+        </button>
+        <button
+          onClick={onConfirm}
+          className="flex-1 rounded-2xl bg-amber-400 py-3 font-bold text-[#2a1e00] transition hover:bg-amber-300"
+        >
+          {confirmLabel}
+        </button>
+      </div>
+    </Overlay>
   );
 }
 
@@ -1094,6 +1261,7 @@ function HostControls({ view }: { view: RoomView }) {
   const all = [view.you, ...view.players];
   const stage = view.voteStage;
   const isGodChoice = view.phase === "day" && stage === "godchoice";
+  const [confirming, setConfirming] = useState(false);
 
   const nc = view.nightControl;
   // Night: while the current role-group still has someone who hasn't acted, the
@@ -1124,7 +1292,37 @@ function HostControls({ view }: { view: RoomView }) {
 
   const dayVoting =
     view.phase === "day" && (stage === "vote" || stage === "revote" || stage === "choice");
+
+  // Who still owes an action right now — so a stray double-tap can't skip them.
+  // Night: connected members of the group being called who haven't acted.
+  // Day: anyone who hasn't voted/chosen yet.
+  const pending: { id: string; name: string }[] =
+    view.phase === "night"
+      ? (nc?.board ?? [])
+          .filter((e) => e.current && !e.done && e.connected)
+          .map((e) => ({ id: e.id, name: e.name }))
+      : dayVoting && status
+        ? status.pendingPlayers.map((p) => ({ id: p.id, name: p.name }))
+        : [];
+
+  // The God tapped the main button. If duties are unfinished, confirm first.
+  const onAdvance = () => {
+    if (pending.length > 0) setConfirming(true);
+    else sendAction(view.code, "advance");
+  };
+  // Confirmed: skip whoever's unfinished, then advance / resolve.
+  const proceed = async () => {
+    setConfirming(false);
+    if (view.phase === "night") {
+      for (const p of pending) await sendAction(view.code, "hostSkip", { targetId: p.id });
+      await sendAction(view.code, "advance");
+    } else {
+      await sendAction(view.code, "hostSkip", { targetId: "__all__" }); // skips + auto-resolves the tally
+    }
+  };
+
   return (
+    <>
     <Card className="!bg-amber-400/10 ring-amber-400/30">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg font-extrabold text-gold-soft">🎙️ God controls</h2>
@@ -1213,14 +1411,30 @@ function HostControls({ view }: { view: RoomView }) {
         </div>
       ) : (
         <button
-          onClick={() => sendAction(view.code, "advance")}
-          disabled={nightWaiting}
-          className="mt-4 w-full rounded-2xl bg-amber-400 py-3 font-bold text-[#2a1e00] transition hover:bg-amber-300 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-amber-400/30 disabled:text-[#2a1e00]/50"
+          onClick={onAdvance}
+          className="mt-4 w-full rounded-2xl bg-amber-400 py-3 font-bold text-[#2a1e00] transition hover:bg-amber-300 active:scale-[0.99]"
         >
           {label}
         </button>
       )}
     </Card>
+
+    {confirming && (
+      <ConfirmModal
+        title="Hold on — not everyone's done"
+        body={
+          view.phase === "night"
+            ? `Still waiting on the ${nc?.currentLabel ?? "current role"} to act. Skip them and move on?`
+            : "Some players haven't voted yet. Skip them and resolve anyway?"
+        }
+        names={pending.map((p) => p.name)}
+        confirmLabel="Skip & continue"
+        cancelLabel="Keep waiting"
+        onConfirm={proceed}
+        onCancel={() => setConfirming(false)}
+      />
+    )}
+    </>
   );
 }
 
