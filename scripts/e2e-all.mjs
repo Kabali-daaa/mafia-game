@@ -47,6 +47,14 @@ async function setup(tag, config) {
 const send = (code, pid, type, payload = {}) => api("action", { code, playerId: pid, type, payload });
 const alive = (hv, id) => [hv.you, ...hv.players].find((p) => p.id === id)?.alive;
 const advance = (code, host) => send(code, host, "advance");
+// The God can't advance past a role-group while a member still hasn't acted, so
+// skip whoever's pending in the CURRENT step first (a real host's "skip"). This
+// never touches later steps, so stepTo can still reach a future role unacted.
+async function skipCurrent(code, host) {
+  const hv = await view(code, host);
+  for (const e of hv.nightControl?.board ?? [])
+    if (e.current && !e.done) await send(code, host, "hostSkip", { targetId: e.id });
+}
 
 // Drive the host-stepped night to completion. plan: { playerId: targetIds[] }.
 // Returns once the night leaves the "night" phase (→ witch or day or ended).
@@ -60,6 +68,7 @@ async function runNight(code, host, plan = {}) {
         await send(code, pid, "nightAction", { targetIds: plan[pid] });
     }
     await wait(220);
+    await skipCurrent(code, host); // skip any current-step actor not in the plan
     await advance(code, host);
     await wait(280);
   }
@@ -70,6 +79,7 @@ async function stepTo(code, host, pid) {
     const pv = await view(code, pid);
     if (pv.phase !== "night") return false;
     if (pv.prompt && pv.prompt.kind === "night") return true;
+    await skipCurrent(code, host); // clear the current step (never `pid`, who isn't current yet)
     await advance(code, host);
     await wait(280);
   }
@@ -605,17 +615,18 @@ section("Play again — host reset returns everyone to the lobby");
 
 // ============================ RULE CLARIFICATIONS ============================
 
-section("Witch can save herself if she is the one attacked");
+section("Witch CANNOT save herself — even when she is the one attacked");
 {
   const { code, host, roles } = await setup("r2_", { killer: 1, witch: 1, villager: 2 });
   const killer = roles.killer[0], witch = roles.witch[0];
   await stepTo(code, host, killer);
   await send(code, killer, "nightAction", { targetIds: [witch] }); // attack the Witch
   await stepTo(code, host, witch);
-  A((await view(code, witch)).prompt?.targets.includes(witch), "attacked Witch sees herself as savable");
-  await send(code, witch, "nightAction", { targetIds: [witch] }); // self-save
-  await runNight(code, host, {});
-  A(alive(await view(code, host), witch) === true, "Witch saved herself from the attack");
+  const wp = (await view(code, witch)).prompt;
+  A(wp && !wp.targets.includes(witch), "attacked Witch is NOT offered herself");
+  A(wp && wp.targets.length === 0, "with only herself attacked, she has no one to save");
+  await runNight(code, host, {}); // she can't save herself; the night resolves
+  A(alive(await view(code, host), witch) === false, "Witch dies — she could not save herself");
 }
 
 // ============================ HOST-STEPPED NIGHT ============================

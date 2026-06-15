@@ -11,9 +11,10 @@ const OUT = "screens";
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const api = (p, b) => fetch(URL + "/api/" + p, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then(async (r) => ({ status: r.status, data: await r.json().catch(() => ({})) }));
 // Read the (public) Firebase web config from .env.local instead of hardcoding it.
+// (globalThis.URL because this file shadows `URL` with the base-URL string above.)
 const env = Object.fromEntries(
   fs
-    .readFileSync(new URL("../.env.local", import.meta.url), "utf8")
+    .readFileSync(new globalThis.URL("../.env.local", import.meta.url), "utf8")
     .split("\n")
     .filter((l) => l.includes("=") && !l.trimStart().startsWith("#"))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; })
@@ -44,6 +45,13 @@ async function game(tag, config) {
   return { code, host: tag + "h", ids, roles };
 }
 const send = (code, pid, type, payload = {}) => api("action", { code, playerId: pid, type, payload });
+// The God can't advance past a role-group while a member hasn't acted, so skip
+// whoever's still pending in the CURRENT step first (a real host's "skip").
+async function skipCurrent(code, host) {
+  const hv = await view(code, host);
+  for (const e of hv.nightControl?.board ?? [])
+    if (e.current && !e.done) await send(code, host, "hostSkip", { targetId: e.id });
+}
 // Drive the host-stepped night to completion. plan: { playerId: targetIds[] }.
 async function runNight(code, host, plan = {}) {
   for (let i = 0; i < 14; i++) {
@@ -55,6 +63,7 @@ async function runNight(code, host, plan = {}) {
         await send(code, pid, "nightAction", { targetIds: plan[pid] });
     }
     await wait(220);
+    await skipCurrent(code, host);
     await send(code, host, "advance");
     await wait(280);
   }
@@ -70,6 +79,7 @@ async function stepTo(code, host, pid) {
     const pv = await view(code, pid);
     if (pv.phase !== "night") return false;
     if (pv.prompt && pv.prompt.kind === "night") return true;
+    await skipCurrent(code, host);
     await send(code, host, "advance"); await wait(280);
   }
   return false;
