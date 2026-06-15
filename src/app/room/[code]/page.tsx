@@ -218,7 +218,9 @@ function Room({ view }: { view: RoomView }) {
         ? { count: chatCount - seenChat }
         : undefined,
     log:
-      activeTab !== "log" && logCount > seenLog ? { count: logCount - seenLog } : undefined,
+      activeTab !== "log" && view.phase !== "night" && logCount > seenLog
+        ? { count: logCount - seenLog }
+        : undefined,
     game: activeTab !== "game" && gameTodo ? { dot: true } : undefined,
   };
 
@@ -1448,8 +1450,10 @@ function Ended({ view }: { view: RoomView }) {
         : won === "lovers"
           ? { emoji: "💞", title: "Lovers win!", cls: "from-blood/25 to-gold/20" }
           : { emoji: "🤡", title: "Neutral wins!", cls: "from-gold/25 to-gold-deep/25" };
-  // The whole game told back as a story, in order.
-  const story = view.log.filter((e) => e.text.trim().length > 0);
+  // Only the end-game recap (the "every mask comes off" chronicle, with all roles
+  // revealed). The cryptic in-game narration is left out — showing both was
+  // confusing; this is the single, clear retelling of who did what.
+  const story = view.log.filter((e) => e.phase === "ended" && e.text.trim().length > 0);
 
   return (
     <div className="space-y-5">
@@ -1693,13 +1697,33 @@ function Roster({ view }: { view: RoomView }) {
 /* --------------------------------- log ----------------------------------- */
 
 function LogFeed({ view }: { view: RoomView }) {
-  if (view.log.length === 0) return null;
+  // Nothing is revealed during the night — the story only updates at dawn.
+  if (view.phase === "night") {
+    return (
+      <Card className="text-center">
+        <div className="text-4xl">🌙</div>
+        <p className="mt-2 text-white/60">
+          The town sleeps. The story continues at dawn — come back when day breaks.
+        </p>
+      </Card>
+    );
+  }
+
+  // Once the game ends we tell the WHOLE truth in one clean recap (the chronicle,
+  // with every role revealed). The cryptic in-game narration is hidden so the two
+  // don't sit side by side and confuse the read.
+  const ended = view.phase === "ended";
+  const lines = view.log.filter(
+    (e) => e.text.trim().length > 0 && (ended ? e.phase === "ended" : e.phase !== "ended")
+  );
+  if (lines.length === 0) return null;
+
   return (
     <Card>
-      <SectionTitle>Story so far</SectionTitle>
+      <SectionTitle>{ended ? "📖 The full story" : "Story so far"}</SectionTitle>
       {/* Chronological — oldest at the top — so it reads as a story, newest last. */}
       <ul className="mt-3 space-y-2 text-sm">
-        {view.log.map((e, i) => (
+        {lines.map((e, i) => (
           <li key={i} className="whitespace-pre-line rounded-2xl bg-white/[0.04] px-3.5 py-2.5 text-white/80">
             {e.text}
           </li>
