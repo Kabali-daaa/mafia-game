@@ -231,6 +231,8 @@ export const ROLES: Record<string, RoleDef> = {
       const [a, b] = targetIds;
       if (!a || !b || a === b) return;
       ctx.state.lovers = [a, b];
+      // Only the two lovers are told (they need to know their linked fate); Cupid
+      // itself gets no result — binding them is just an action.
       ctx.privateResults[a] = `💘 You are in love with ${ctx.nameOf(b)}. If either of you dies, so does the other.`;
       ctx.privateResults[b] = `💘 You are in love with ${ctx.nameOf(a)}. If either of you dies, so does the other.`;
     },
@@ -271,7 +273,8 @@ export const ROLES: Record<string, RoleDef> = {
       if (others.every((id) => visited.includes(id))) visited = [];
       ctx.itemTargets[actorId] = t;
       ctx.state.itemVisited[actorId] = [...visited, t];
-      ctx.privateResults[actorId] = `🎲 You spent the night with ${ctx.nameOf(t)}.`;
+      // No result for the Item — spending the night is just an action. (If the
+      // visit is fatal, that plays out in the morning like any other death.)
     },
   },
 

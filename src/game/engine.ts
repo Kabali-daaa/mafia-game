@@ -994,7 +994,7 @@ function applyLynchLovers(room: Room, deadId: string): void {
         `💀 ${p.name} drops where they stand, lifeless before they hit the ground.`,
         `🔪 ${p.name} is discovered slumped against the gate, throat opened to the bone.`,
         `🌫️ ${p.name} crumples without a sound, gone before anyone can reach them.`,
-        `🩸 ${p.name} is found cold in a spreading red pool, the killer long melted into the crowd.`,
+        `🩸 ${p.name} is found cold in a spreading red pool, the culprit long melted into the crowd.`,
       ]),
     });
   }
