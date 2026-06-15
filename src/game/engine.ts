@@ -59,6 +59,9 @@ export interface Room {
   // A hidden record of everything that happened — every night action, death, and
   // banishment — replayed (with all roles revealed) only when the game ends.
   chronicle: ChronicleScene[];
+  // An AI-written narrative recap, generated on demand once the game ends (null
+  // until the God taps "Write the story"). Shared with everyone via their views.
+  aiStory: string | null;
 }
 
 export type ChronicleScene =
@@ -123,6 +126,7 @@ export function createRoom(code: string, host: Player): Room {
     chat: { town: [], killers: [] },
     chatSeq: 0,
     chronicle: [],
+    aiStory: null,
   };
 }
 
@@ -216,6 +220,7 @@ export function startGame(room: Room): void {
   room.chat = { town: [], killers: [] };
   room.chatSeq = 0;
   room.chronicle = [];
+  room.aiStory = null;
   room.winner = null;
   room.log = [{ phase: "night", day: 1, text: "🌙 Night 1 falls. The town sleeps..." }];
 }
@@ -1131,6 +1136,7 @@ export function resetToLobby(room: Room): void {
   room.chat = { town: [], killers: [] };
   room.chatSeq = 0;
   room.chronicle = [];
+  room.aiStory = null;
   room.log = [];
   for (const p of room.players) {
     p.roleId = null;
@@ -1253,6 +1259,7 @@ export function buildView(room: Room, viewerId: string): RoomView {
     config: room.config,
     log: room.log,
     winner: room.winner,
+    aiStory: room.aiStory ?? null,
     prompt: buildPrompt(room, viewer),
     privateMessage: room.privateMessages[viewerId] ?? null,
     hostStatus: isHost ? buildHostStatus(room) : null,

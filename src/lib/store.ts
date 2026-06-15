@@ -13,6 +13,7 @@ import {
   GameError,
   type ActionType,
 } from "@/game/actions";
+import { generateStory } from "@/lib/story";
 import type { Player } from "@/lib/types";
 
 // Firestore layout:
@@ -144,6 +145,28 @@ export function actionRoomDoc(
   return mutate(code.toUpperCase(), (room) =>
     applyAction(room, playerId, type, payload)
   );
+}
+
+// Generate the AI story recap (host-only, after the game ends) and save it onto the
+// room so every player's view picks it up. The slow model call happens OUTSIDE the
+// transaction; only the quick write is transactional.
+export async function generateStoryDoc(code: string, playerId: string): Promise<void> {
+  const c = code.toUpperCase();
+  const snap = await roomRef(c).get();
+  if (!snap.exists) throw new GameError("Room not found.");
+  const room = snap.data() as Room;
+  if (room.hostId !== playerId) throw new GameError("Only the host can write the story.");
+  if (room.phase !== "ended") throw new GameError("The story unlocks once the game ends.");
+
+  let story: string;
+  try {
+    story = await generateStory(room);
+  } catch (e: any) {
+    throw new GameError(e?.message || "Couldn't write the story. Try again.");
+  }
+  await mutate(c, (r) => {
+    r.aiStory = story;
+  });
 }
 
 export { GameError };

@@ -48,6 +48,8 @@ export interface RoomView {
   config: RoleConfig;
   log: LogEntry[];
   winner: Winner | null;
+  // AI-written narrative recap (null until the God generates it at game end).
+  aiStory: string | null;
   // Per-phase prompts for the receiving player (e.g. "choose who to kill").
   prompt: ActionPrompt | null;
   // Private message just for this player (e.g. detective result).

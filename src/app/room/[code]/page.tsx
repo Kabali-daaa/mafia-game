@@ -13,6 +13,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   joinGame,
   recallName,
+  requestStory,
   sendAction,
   subscribeToView,
 } from "@/lib/game";
@@ -1450,10 +1451,37 @@ function Ended({ view }: { view: RoomView }) {
         : won === "lovers"
           ? { emoji: "💞", title: "Lovers win!", cls: "from-blood/25 to-gold/20" }
           : { emoji: "🤡", title: "Neutral wins!", cls: "from-gold/25 to-gold-deep/25" };
-  // Only the end-game recap (the "every mask comes off" chronicle, with all roles
-  // revealed). The cryptic in-game narration is left out — showing both was
-  // confusing; this is the single, clear retelling of who did what.
-  const story = view.log.filter((e) => e.phase === "ended" && e.text.trim().length > 0);
+  // The factual chronicle (every mask off, who did what) — the source of truth and
+  // the fallback before/if the AI story is generated.
+  const recap = view.log.filter((e) => e.phase === "ended" && e.text.trim().length > 0);
+  const isHost = view.you.isHost;
+
+  const [generating, setGenerating] = useState(false);
+  const [storyErr, setStoryErr] = useState("");
+  const writeStory = async () => {
+    setStoryErr("");
+    setGenerating(true);
+    try {
+      await requestStory(view.code);
+    } catch (e: any) {
+      setStoryErr(e?.message || "Couldn't write the story. Try again.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const recapList = (
+    <ol className="mt-3 space-y-2.5">
+      {recap.map((e, i) => (
+        <li key={i} className="flex gap-3">
+          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-bold text-white/50">
+            {i + 1}
+          </span>
+          <p className="whitespace-pre-line text-sm leading-relaxed text-white/80">{e.text}</p>
+        </li>
+      ))}
+    </ol>
+  );
 
   return (
     <div className="space-y-5">
@@ -1461,7 +1489,7 @@ function Ended({ view }: { view: RoomView }) {
         <div className="text-5xl">{conf.emoji}</div>
         <h2 className="mt-2 font-display text-3xl font-black uppercase tracking-wide text-bone">{conf.title}</h2>
         <p className="mt-1 text-white/65">Final roles are revealed in the roster.</p>
-        {view.you.isHost && (
+        {isHost && (
           <button
             onClick={() => sendAction(view.code, "reset")}
             className="mt-4 rounded-2xl bg-white/15 px-6 py-3 font-bold ring-1 ring-white/20 transition hover:bg-white/25"
@@ -1471,19 +1499,50 @@ function Ended({ view }: { view: RoomView }) {
         )}
       </Card>
 
-      <Card>
-        <SectionTitle>📖 How it all unfolded</SectionTitle>
-        <ol className="mt-3 space-y-2.5">
-          {story.map((e, i) => (
-            <li key={i} className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-bold text-white/50">
-                {i + 1}
-              </span>
-              <p className="whitespace-pre-line text-sm leading-relaxed text-white/80">{e.text}</p>
-            </li>
-          ))}
-        </ol>
-      </Card>
+      {view.aiStory ? (
+        <Card className="bg-gradient-to-br from-gold/10 to-transparent ring-gold/25">
+          <div className="flex items-center justify-between gap-3">
+            <SectionTitle>✨ The Tale of {view.code}</SectionTitle>
+            {isHost && (
+              <button
+                onClick={writeStory}
+                disabled={generating}
+                className="shrink-0 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-bold text-white/75 ring-1 ring-white/15 transition hover:bg-white/20 disabled:opacity-50"
+              >
+                {generating ? "✨ Rewriting…" : "🔄 Rewrite"}
+              </button>
+            )}
+          </div>
+          <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-bone/90">{view.aiStory}</p>
+          {storyErr && <p className="mt-2 text-sm text-blood-soft">{storyErr}</p>}
+          <details className="mt-4 border-t border-white/10 pt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-white/45 transition hover:text-white/70">
+              📋 See the play-by-play
+            </summary>
+            {recapList}
+          </details>
+        </Card>
+      ) : (
+        <Card>
+          <SectionTitle>📖 How it all unfolded</SectionTitle>
+          {isHost && (
+            <div className="mt-3">
+              <button
+                onClick={writeStory}
+                disabled={generating}
+                className="w-full rounded-2xl bg-gradient-to-r from-gold to-gold-deep py-3 font-bold text-ink-900 shadow-lg shadow-black/40 transition hover:opacity-90 active:scale-[0.99] disabled:opacity-60"
+              >
+                {generating ? "✨ Writing the story…" : "✨ Write the story with AI"}
+              </button>
+              {storyErr && <p className="mt-2 text-center text-sm text-blood-soft">{storyErr}</p>}
+              <p className="mt-2 text-center text-xs text-white/40">
+                Turns the game into a narrated tale. Only you (the God) can run it.
+              </p>
+            </div>
+          )}
+          {recapList}
+        </Card>
+      )}
     </div>
   );
 }

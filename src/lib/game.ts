@@ -59,6 +59,12 @@ export function sendAction(
   return post("/api/action", { code, playerId: getPlayerId(), type, payload });
 }
 
+// Ask the server to (re)write the AI story recap for a finished game (host only).
+// The result lands on the room and arrives via the live view subscription.
+export function requestStory(code: string): Promise<{ ok: boolean }> {
+  return post("/api/story", { code, playerId: getPlayerId() });
+}
+
 // Live-subscribe to this player's view of the room. Returns an unsubscribe fn.
 export function subscribeToView(
   code: string,
