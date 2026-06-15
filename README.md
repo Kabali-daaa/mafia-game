@@ -7,7 +7,29 @@ secret, the town argues by day, and the Killers strike by night.
 **▶️ Play:** https://game-mafia.vercel.app
 
 Built with **Next.js + Firebase Firestore** — game state lives in Firestore and
-pushes live updates to every player, so it runs fully on free serverless hosting.
+pushes live updates to every player, so it runs fully on free serverless hosting —
+plus **Google Gemini** for an AI-written end-game story.
+
+---
+
+## ✨ Features at a glance
+
+- 🎭 **12 roles** across Killers / Town / Neutral — each with distinct night powers and
+  twists (transformations, cross-team lovers, a deadly curse, village immunity, a
+  trickster who wins by losing).
+- 📱 **Phone-first & real-time** — join by **QR or link**, instant Firestore updates,
+  refresh-safe, and **rejoin-by-name** even from another device mid-game.
+- 🎙️ **God / narrator mode** — host-stepped nights with a live "who-acted" board and
+  **skip-safe** controls that can't accidentally drop a player's action.
+- 🔔 **Never miss your move** — turn pop-ups (vote / kill / heal / investigate…),
+  tap-gated private-result pop-ups, and tab badges for chat / story / your turn.
+- 🕵️ **Full mystery** — roles are **never revealed mid-game**, not on death, not on
+  banishment; the morning narration is gruesome but role-blind.
+- ✨ **AI story recap** (Gemini) — the whole match retold as a cinematic,
+  fact-grounded tale, with every role finally unmasked.
+- 🌗 **Dark, responsive UI** — bottom tabs on mobile, a left menu on desktop, zero
+  horizontal overflow (verified by a browser sweep).
+- 🆓 **Runs free** on Vercel + Firebase.
 
 ---
 
@@ -97,13 +119,22 @@ God sees a live board of **who acted and what they chose**. The order is:
 2. 🔪 **Killers / Godfather** — agree on **one** victim (one kill total, even with several)
 3. 🪓 **Psycho Killer** (odd nights)
 4. 🔫 **Vigilante** (odd nights, after transforming)
-5. 🚓 **Police** — investigate a suspect
-6. 🩺 **Doctor** — heal someone
-7. 🎲 **Item** — pick who to spend the night with
-8. 🧙 **Witch** — shown who was **attacked**, may **save** one (blind to the Doctor)
+5. 🎲 **Item** — pick who to spend the night with
+6. 🧙 **Witch** — shown who was **attacked**, may **save** one (blind to the Doctor)
+7. 🩺 **Doctor** — heal someone
+8. 🚓 **Police** — investigate a suspect
+
+The attackers are always called **before** the Witch (so she truly sees who was
+hit). The God **can't advance past a group while a connected member still hasn't
+acted** — they get a "still waiting on…" notice and must wait or explicitly skip
+that player, so a stray tap can never silently drop the Killers' kill. Players also
+get a **pop-up when it's their turn** (vote / kill / heal / investigate…) so no one
+misses their move.
 
 On the last role the God taps **Resolve night** and everything is worked out
-together (saves cancel kills, the Item's curse and Lovers' fate apply, etc.).
+together (saves cancel kills, the Item's curse and Lovers' fate apply, etc.). Order
+of resolution puts **protectors before kills**: the Doctor's heal and the Witch's
+save are applied first, then the attacks land on whoever's left unprotected.
 
 #### ☀️ Day
 Morning is announced with a bit of flavour — who died overnight and *how* (poisoned,
@@ -154,7 +185,7 @@ If two or more players tie for the most votes:
 | 💘 **Cupid** | On **night 1 only**, pick **two players** to become **Lovers**. |
 | 🏛️ **Panchayat Thalaivar** | The village head — **Killers cannot kill them at night while any Cupid is alive**. They can **always be voted out by day**, even while a Cupid lives. |
 | 🎲 **Item** | Each night, **choose someone to spend the night with** — you **can't pick the same person twice**. The Item **dies** if that player is a **Killer**, or if that player **dies that night**. |
-| 🧙 **Witch** | Called by the God after the Killers. She's shown **who was attacked** that night and may **save one of them** — but she **won't know if the Doctor already protected them** (a redundant save is wasted). Only **twice per game**. |
+| 🧙 **Witch** | Called by the God after the Killers. She's shown **who was attacked** that night and may **save one of them** (**never herself**) — but she **won't know if the Doctor already protected them** (a redundant save is wasted). Only **twice per game**. |
 | 🧑‍🌾 **Villager** | No special power. Use discussion and votes to find the Killers. |
 | 🔫 **Vigilante** | *Not dealt at the start* — a Doctor-healed Psycho becomes one. Shoots on **odd nights**: kills a **Killer** cleanly, but **dies** if they shoot an innocent. |
 
@@ -177,11 +208,40 @@ If two or more players tie for the most votes:
   is notified; a fresh dramatic reveal shows their new role.
 - **🧙 Witch saves blind:** when the God calls her, she sees who the Killers
   **attacked** and may shield one — but she's **not told whether the Doctor already
-  protected them**, so a redundant save is wasted. Max **2 saves** per game, and
-  she can save **herself** if she's the one attacked.
+  protected them**, so a redundant save is wasted. Max **2 saves** per game, and she
+  **cannot save herself** — if she's the one under attack, only the Doctor can spare her.
 - **🏛️ Panchayat immunity:** Killers can't kill the Panchayat Thalaivar at night as
   long as a Cupid is alive — but the **day vote can always eliminate them**, Cupid
   or not.
+
+---
+
+## ✨ AI story recap (Google Gemini)
+
+When the game ends, the God can tap **"✨ Write the story"** and an AI narrator turns
+the whole match into a short, cinematic tale — naming every player, revealing their
+secret role, and retelling each night and day in order, building to the winning side.
+It's a world apart from a fill-in-the-blanks template.
+
+- **Grounded in the real game.** The server builds a *factual brief* from the hidden
+  chronicle (who acted on whom each night, every death and how, every banishment, the
+  winner) and instructs the model to dramatize it **without inventing anything** — no
+  invented deaths, saves, or roles.
+- **Timeline-accurate.** Each role is described **as it was at that moment**: a Psycho
+  the Doctor healed is the "Psycho Killer" on early nights and only "becomes the
+  Vigilante" as a twist *when it actually happens* — never back-dated. An explicit
+  final *survived / fell* list keeps the wrap-up honest.
+- **Generated once, shared with everyone.** The recap is saved on the room so every
+  player sees the same story; the God can **🔄 Rewrite** for a different take. The
+  cryptic in-game death narration is hidden at the end so only the clean recap shows.
+- **Host-controlled & safe to omit.** Only the God can trigger it (one API call per
+  tap). Set `GEMINI_API_KEY` to enable it (model defaults to **`gemini-2.5-flash-lite`**,
+  which works on Gemini's free tier; override with `GEMINI_MODEL`). With no key
+  configured, the game simply shows the plain chronicle recap instead.
+
+The call lives server-side in `src/lib/story.ts` (prompt + Gemini REST) behind the
+`/api/story` route; the key is read from the environment and **never reaches the
+browser**.
 
 ---
 
@@ -201,11 +261,21 @@ If two or more players tie for the most votes:
 
 - **Join by link or QR:** the lobby shows a **QR code** and a **share link**
   (`/?room=CODE`) — scan or tap and the room code is pre-filled, no typing.
-- **In-app help:** a **?** button in the header opens **Roles & Rules** any time.
+- **In-app help:** a **?** button in the header opens **Rules, Roles & Twists** any time.
+- **Turn pop-ups & notifications:** when it's your move, a pop-up shows the exact
+  action (vote / kill / heal / investigate…) so you never miss it; **private results**
+  (the Police's finding, Cupid's love note) pop up too — tap-gated so a passer-by can't
+  read them. Tab badges flag **new chat messages**, **new Story entries**, and **your
+  turn**.
+- **Skip-safe God controls:** the God's advance button **confirms before skipping**
+  anyone who hasn't finished their duty, and refuses to drop an un-acted group — so a
+  double-tap can't cost a player their action.
 - **Creative death reveals:** each morning narrates who fell and *how* (poisoned,
-  stabbed, drowned…) with variety — without ever leaking their role.
-- **Story recap:** when the game ends, the whole match is replayed back as a
-  numbered **story** of everything that happened.
+  stabbed, drowned…) with variety — without ever leaking their role. (A fuzz test over
+  20k games verifies no role word ever leaks into the in-game story.)
+- **Story, paced right:** the running story is **hidden at night** and updates by day,
+  and at the end you get the **AI story recap** (see above) — or, with no AI key, the
+  full **chronicle** replayed with every role revealed.
 - **Hide your role:** your role is **hidden by default** in the header (tap to
   reveal, tap again to hide) — so a glance at your phone gives nothing away.
 - **Dramatic reveal:** when you're dealt a role (or it changes), a full-screen
@@ -242,6 +312,14 @@ Doctor/Witch saves, Police checks, Lovers, the Item's curse, the Psycho→Vigila
 transform, Panchayat immunity, voting/ties, and **every win condition** — directly
 over an in-memory `Room`, so it runs in milliseconds and never touches Firestore.
 
+Two heavier **sweeps** live in `scripts/` and run against a local dev server + your
+Firebase project, so they **use Firestore quota** — run them deliberately:
+
+```bash
+node scripts/e2e-all.mjs     # 90+ end-to-end checks: every role, win condition, voting/ties, chat, reconnect
+node scripts/visual-all.mjs  # drives a real browser (Puppeteer) through every UI state, asserts no overflow, saves screenshots
+```
+
 ## Architecture
 
 - **Next.js app** (UI + `/api` routes) — deploys to **Vercel** for free, never sleeps.
@@ -254,6 +332,9 @@ over an in-memory `Room`, so it runs in milliseconds and never touches Firestore
   - `engine.ts` — pure game logic over a `Room` object (phases, night resolution,
     voting/tiebreak, win checks, per-player views).
   - `actions.ts` — maps player actions onto the engine.
+- **AI recap:** `src/lib/story.ts` (server-only) builds the factual brief from the
+  room's chronicle and calls Gemini; the `/api/story` route (host-only) generates it
+  once the game ends and saves it onto the room for everyone to see.
 
 ## Adding new roles
 
@@ -269,8 +350,13 @@ have a small note pointing to their extra logic in `engine.ts`.
    (gives the `NEXT_PUBLIC_FIREBASE_*` values), and generate a **service-account
    key** (the `FIREBASE_SERVICE_ACCOUNT` JSON). Publish the rules in
    `firestore.rules`.
-2. **Vercel:** import the GitHub repo, add the 7 environment variables from
-   `.env.local.example`, and deploy.
+2. **Gemini (optional, for the AI recap):** grab a free key at
+   [aistudio.google.com](https://aistudio.google.com/app/apikey) and set it as
+   `GEMINI_API_KEY` (optionally `GEMINI_MODEL`). Skip it and the game falls back to the
+   plain chronicle recap.
+3. **Vercel:** import the GitHub repo, add the environment variables from
+   `.env.local.example` (the 7 Firebase values, plus `GEMINI_API_KEY` for the AI
+   story), and deploy.
 
 Secrets live only in `.env.local` (git-ignored) and Vercel's encrypted env vars —
 never in the repo.

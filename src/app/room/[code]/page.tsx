@@ -760,10 +760,12 @@ function HelpModal({ onClose }: { onClose: () => void }) {
               <div>
                 <h3 className="font-bold text-white">🌙 Night</h3>
                 <p className="mt-1">
-                  The God calls each role-group in turn — Cupid, Killers, Psycho,
-                  Police, Doctor, Item, then the Witch. Only the called role acts;
-                  everyone else waits. The Killers make just <b>one kill</b> per night
-                  no matter how many there are.
+                  The God calls each role-group in turn — Cupid → Killers → Psycho →
+                  Vigilante → Item → Witch → Doctor → Police. Only the called role
+                  acts; everyone else waits. The God <b>can't move on until that group
+                  has acted</b> (or is skipped), so no choice is ever lost. Protectors
+                  (Doctor, Witch) apply <i>before</i> kills land, and the Killers make
+                  just <b>one kill</b> per night no matter how many there are.
                 </p>
               </div>
               <div>
@@ -777,10 +779,30 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                 </p>
               </div>
               <div>
+                <h3 className="font-bold text-white">🃏 Twists & powers</h3>
+                <ul className="mt-1 space-y-1.5">
+                  <li>🩺→🔫 A <b>Psycho the Doctor heals</b> secretly turns <b>Vigilante</b> — now hunting Killers on odd nights (shoot an innocent and you die too).</li>
+                  <li>💘 <b>Lovers share a fate</b> — lose one, lose both, even by banishment.</li>
+                  <li>🏛️ The <b>Panchayat</b> can't be killed at night while a <b>Cupid</b> still lives.</li>
+                  <li>🎲 The <b>Item</b> dies if she spends the night with a <b>Killer</b>, or if that person dies that night.</li>
+                  <li>🧙 The <b>Witch</b> is shown who was attacked and saves <b>blind to the Doctor</b> — twice per game, never herself.</li>
+                  <li>🎩 The <b>Godfather</b> reads <b>innocent</b> to the Police.</li>
+                </ul>
+              </div>
+              <div>
                 <h3 className="font-bold text-white">💬 Chat & privacy</h3>
                 <p className="mt-1">
                   Town chat is anonymous. The Killers have a private room. Your role is
-                  hidden by default — tap the chip in the header to peek.
+                  hidden by default — tap the chip in the header to peek. A 🔔 dot
+                  flags your turn to act and new Story entries.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-bold text-white">✨ The end</h3>
+                <p className="mt-1">
+                  When it's over, every mask comes off — and the God can have <b>AI write
+                  the whole game as a story</b>, narrating who was who and how it all
+                  unfolded.
                 </p>
               </div>
             </>
