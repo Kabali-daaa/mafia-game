@@ -1,5 +1,6 @@
 // Visual end-to-end: drive the real browser through every UI state, assert key
 // elements + zero horizontal overflow, and save screenshots.
+import fs from "fs";
 import puppeteer from "../node_modules/puppeteer-core/lib/esm/puppeteer/puppeteer-core.js";
 import { initializeApp } from "../node_modules/firebase/app/dist/index.mjs";
 import { getFirestore, doc, getDoc } from "../node_modules/firebase/firestore/dist/index.mjs";
@@ -9,7 +10,19 @@ const URL = "http://localhost:3000";
 const OUT = "screens";
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const api = (p, b) => fetch(URL + "/api/" + p, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then(async (r) => ({ status: r.status, data: await r.json().catch(() => ({})) }));
-const app = initializeApp({ apiKey: "FIREBASE_API_KEY_REMOVED", authDomain: "mafia-game-b8064.firebaseapp.com", projectId: "mafia-game-b8064" });
+// Read the (public) Firebase web config from .env.local instead of hardcoding it.
+const env = Object.fromEntries(
+  fs
+    .readFileSync(new URL("../.env.local", import.meta.url), "utf8")
+    .split("\n")
+    .filter((l) => l.includes("=") && !l.trimStart().startsWith("#"))
+    .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; })
+);
+const app = initializeApp({
+  apiKey: env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+});
 const db = getFirestore(app);
 const view = async (code, pid) => (await getDoc(doc(db, "rooms", code, "views", pid))).data();
 
