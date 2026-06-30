@@ -74,7 +74,9 @@ export function buildStoryFacts(room: Room): string {
         : room.winner === "lovers"
           ? "the Lovers"
           : room.winner === "neutral"
-            ? "the Jester"
+            ? (room.log.some((e) => e.phase === "ended" && /Psycho Killer wins/.test(e.text))
+                ? "the Psycho Killer"
+                : "the Jester")
             : "no one";
   out.push(`\nWINNER: ${winLabel}.`);
 

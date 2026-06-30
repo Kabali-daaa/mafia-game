@@ -123,11 +123,16 @@ export const ROLES: Record<string, RoleDef> = {
   psycho: {
     id: "psycho",
     name: "Psycho Killer",
-    team: "mafia",
+    team: "neutral", // a lone wolf — allied with no one
+    apparentTeam: "mafia", // but the Police still read them as a Killer
     emoji: "🪓",
-    // NOTE: the "healed → becomes Vigilante" transformation is handled in engine.ts.
+    // NOTE: as a neutral, the Psycho has his OWN parity win (see checkWinner in
+    // engine.ts): he wins by outnumbering-or-equalling everyone else (incl. 1-v-1).
+    // While he's alive he blocks BOTH the Town and the Killers from winning — they
+    // must take him out first. The "healed → becomes Vigilante" transform (he then
+    // joins the Town) also lives in engine.ts.
     description:
-      "A lone killer who strikes only on odd nights (1, 3, 5…). If the Doctor ever happens to heal them, they secretly become a Vigilante.",
+      "A lone wolf who answers to no one, striking only on odd nights (1, 3, 5…). He has no allies — and while he lives, NEITHER the Town nor the Killers can win, so both must hunt him down. He wins by being the last one standing (down to a 1-v-1, he takes it). The Police read him as a Killer. If the Doctor ever heals him, something changes: he becomes a Vigilante and sides with the village.",
     night: {
       order: 50,
       prompt: "It's your night. Choose a player to kill (or skip).",

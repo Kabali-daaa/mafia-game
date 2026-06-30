@@ -158,6 +158,25 @@ function apparentTeamOf(room: Room, playerId: string): Team | null {
   return r?.apparentTeam ?? r?.team ?? null;
 }
 
+// Do two players share a WINNING faction? Both Town, both Mafia, or the SAME
+// neutral role. Different neutral roles (Psycho vs Jester) are NOT a team — each
+// neutral is an independent faction-of-one — so a Cupid link across them counts
+// as cross-team for the Lovers' victory.
+function sameFaction(room: Room, a: string, b: string): boolean {
+  const ta = teamOf(room, a);
+  const tb = teamOf(room, b);
+  if (ta === "neutral" && tb === "neutral") return roleOf(room, a) === roleOf(room, b);
+  return ta === tb;
+}
+
+// Does this player actually kill at night? The mafia squad AND the (neutral)
+// Psycho. Used by the Vigilante (shooting a real killer is "fair" — no backfire)
+// and the Item (visiting a real killer triggers the curse), independent of which
+// faction the player wins for.
+function isKillerRole(room: Room, playerId: string): boolean {
+  return teamOf(room, playerId) === "mafia" || roleOf(room, playerId) === "psycho";
+}
+
 function nameOf(room: Room, playerId: string): string {
   return room.players.find((p) => p.id === playerId)?.name ?? "Unknown";
 }
@@ -446,18 +465,19 @@ function computeDeaths(
     seed(id);
   }
 
-  // 2. Vigilante shots: the target dies (unless healed); shooting a non-Killer
-  //    also kills the Vigilante. Both are their own primaries.
+  // 2. Vigilante shots: the target dies (unless healed); shooting someone who
+  //    ISN'T a real killer (the mafia squad or the Psycho) also kills the
+  //    Vigilante. Both are their own primaries.
   for (const [shooterId, targetId] of Object.entries(ctx.vigilanteShots)) {
     if (!aliveNow(shooterId)) continue;
     if (aliveNow(targetId) && !ctx.protectedIds.has(targetId)) seed(targetId);
-    if (teamOf(room, targetId) !== "mafia") seed(shooterId);
+    if (!isKillerRole(room, targetId)) seed(shooterId);
   }
 
-  // 3. Item drawn to a Killer dies on its own (a standalone primary).
+  // 3. Item drawn to a Killer (mafia squad or the Psycho) dies on its own.
   for (const [itemId, targetId] of Object.entries(itemTargets)) {
     if (!aliveNow(itemId)) continue;
-    if (teamOf(room, targetId) === "mafia") seed(itemId);
+    if (isKillerRole(room, targetId)) seed(itemId);
   }
 
   // 4. Propagate the links to a fixpoint: a cursed Item joins the group of the
@@ -469,7 +489,7 @@ function computeDeaths(
     changed = false;
     for (const [itemId, targetId] of Object.entries(itemTargets)) {
       if (!aliveNow(itemId) || isDead(itemId)) continue;
-      if (teamOf(room, targetId) !== "mafia" && isDead(targetId)) {
+      if (!isKillerRole(room, targetId) && isDead(targetId)) {
         bind(targetId, itemId);
         changed = true;
       }
@@ -619,7 +639,9 @@ function buildGodReport(
         `died for shooting an innocent — the Vigilante's own price`;
   }
   for (const [itemId, targetId] of Object.entries(ctx.itemTargets)) {
-    if (deadIds.has(itemId) && cause[itemId] == null)
+    // Only a visit to a REAL killer is the curse; an Item that died visiting an
+    // ordinary victim died by the bind rule (handled in the bound loop below).
+    if (deadIds.has(itemId) && cause[itemId] == null && isKillerRole(room, targetId))
       cause[itemId] =
         `the Item, drawn to a Killer (${whoIs(room, targetId)}), didn't survive the visit`;
   }
@@ -1123,12 +1145,24 @@ export function checkWinner(room: Room): Winner | null {
   if (lovers && living.length === 2) {
     const ids = living.map((p) => p.id);
     if (ids.includes(lovers[0]) && ids.includes(lovers[1])) {
-      if (teamOf(room, lovers[0]) !== teamOf(room, lovers[1])) return "lovers";
+      if (!sameFaction(room, lovers[0], lovers[1])) return "lovers";
     }
   }
 
+  // The lone-wolf Psycho is checked FIRST: while he's alive he is a live threat
+  // who blocks BOTH the Town and the Killers from winning — they must take him out
+  // first. He himself wins the moment he reaches parity (a 1-v-1, or last standing).
+  // (A healed Psycho is now a Vigilante — roleId "vigilante", team town — so he no
+  // longer counts as a Psycho here and wins with the Town instead.)
+  const psycho = living.filter((p) => p.roleId === "psycho").length;
+  if (psycho > 0) {
+    if (psycho >= living.length - psycho) return "neutral"; // parity → Psycho wins
+    return null; // alive but outnumbered → nobody can win yet
+  }
+
+  // No Psycho left — the usual Town/Killers contest.
   const killers = living.filter((p) => teamOf(room, p.id) === "mafia").length;
-  const others = living.length - killers; // town + any surviving neutrals
+  const others = living.length - killers;
   if (killers === 0) return "town";
   if (killers >= others) return "mafia";
   return null;
@@ -1137,6 +1171,12 @@ export function checkWinner(room: Room): Winner | null {
 function endGame(room: Room, winner: Winner, message?: string): void {
   room.phase = "ended";
   room.winner = winner;
+  // Two neutrals can win: the Jester (banished — ALWAYS passes a custom message)
+  // and the Psycho Killer (parity — comes through checkWinner, no message, alive).
+  const psychoWon =
+    winner === "neutral" &&
+    !message &&
+    room.players.some((p) => !p.isHost && p.alive && p.roleId === "psycho");
   const text =
     message ??
     (winner === "town"
@@ -1145,7 +1185,9 @@ function endGame(room: Room, winner: Winner, message?: string): void {
         ? "💀 The Killers win! They control the town."
         : winner === "lovers"
           ? "💞 The Lovers win! Their forbidden bond outlasted everyone."
-          : "🤡 The Neutral player wins!");
+          : psychoWon
+            ? "🪓 The Psycho Killer wins — the last soul left standing."
+            : "🤡 The Neutral player wins!");
   room.log.push({ phase: "ended", day: room.day, text });
 
   // Name the victorious side out loud — e.g. reveal the whole Killer team.
@@ -1153,13 +1195,23 @@ function endGame(room: Room, winner: Winner, message?: string): void {
     winner === "mafia" ? "the Killers"
     : winner === "town" ? "the Town"
     : winner === "lovers" ? "the Lovers"
+    : psychoWon ? "the Psycho Killer"
     : "the Jester";
   let winners: string[];
   if (winner === "lovers" && room.roleState.lovers) {
     winners = room.roleState.lovers.map((id) => nameOf(room, id));
   } else if (winner === "neutral") {
+    // Both the Jester and the Psycho are team "neutral", so isolate the actual
+    // winner by ROLE: the Psycho wins by surviving (the living Psycho); the Jester
+    // wins by banishment (the cast-out, now-dead Jester). This keeps a dead Psycho
+    // off the Jester's roll, and a living Jester off the Psycho's.
     winners = room.players
-      .filter((p) => !p.isHost && getRole(p.roleId)?.team === "neutral")
+      .filter((p) => {
+        if (p.isHost) return false;
+        return psychoWon
+          ? p.alive && p.roleId === "psycho"
+          : !p.alive && getRole(p.roleId)?.winsIfLynched === true;
+      })
       .map((p) => p.name);
   } else {
     winners = room.players
@@ -1181,7 +1233,9 @@ function endGame(room: Room, winner: Winner, message?: string): void {
         ? "🌑 The town never saw the dawn — the Killers had won."
         : winner === "lovers"
           ? "💞 Two hearts from opposite worlds, the last ones standing — together."
-          : "🌲 The Jester skips off into the forest, free at last — cackling all the way.";
+          : psychoWon
+            ? "🪓 When the screaming stopped, only the Psycho remained — smiling in the dark."
+            : "🌲 The Jester skips off into the forest, free at last — cackling all the way.";
   room.log.push({ phase: "ended", day: room.day, text: closer });
 
   // The full director's-cut chronicle — every night replayed (who did what), every

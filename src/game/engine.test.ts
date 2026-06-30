@@ -293,6 +293,74 @@ test("a Doctor-healed Psycho secretly becomes a Vigilante", () => {
   assert.equal(P(room, "P").roleId, "vigilante", "the Psycho transformed");
 });
 
+/* ---------------------- psycho = neutral lone wolf ----------------------- */
+
+test("the Killers can't win while a Psycho is alive — even at numerical parity", () => {
+  // 2 Killers + 1 Villager + 1 Psycho: 2-v-2, but the Psycho is a live threat that
+  // blocks the Killers' win — they must take him out first.
+  const room = setup({ K: "killer", GF: "godfather", P: "psycho", V1: "villager" });
+  assert.equal(checkWinner(room), null, "the Psycho blocks the Killers' parity win");
+  P(room, "P").alive = false; // remove the Psycho → now it's a clean 2-v-1 mafia parity
+  assert.equal(checkWinner(room), "mafia", "with the Psycho gone, the Killers win at parity");
+});
+
+test("the lone-wolf Psycho wins at parity (1-v-1) and as the last one standing", () => {
+  const room = setup({ P: "psycho", K: "killer", V1: "villager", V2: "villager" });
+  // Down to the Psycho + one Villager → the Psycho takes the 1-v-1.
+  for (const id of ["K", "V1"]) P(room, id).alive = false;
+  assert.equal(checkWinner(room), "neutral", "Psycho wins 1-v-1");
+  P(room, "V2").alive = false; // truly last standing
+  assert.equal(checkWinner(room), "neutral", "Psycho wins as the last soul alive");
+});
+
+test("the Town can't win while the Psycho lives, but wins once he's gone", () => {
+  const room = setup({ P: "psycho", K: "killer", V1: "villager", V2: "villager" });
+  P(room, "K").alive = false; // mafia gone, but the Psycho still prowls
+  assert.equal(checkWinner(room), null, "no Town win while the Psycho is alive");
+  P(room, "P").alive = false; // now every killer (mafia + Psycho) is gone
+  assert.equal(checkWinner(room), "town", "the Town wins once the Psycho is dead too");
+});
+
+test("a Vigilante who shoots the Psycho kills him and does NOT backfire", () => {
+  const room = setup({ Vig: "vigilante", P: "psycho", K: "killer", V1: "villager", V2: "villager" });
+  runNight(room, { Vig: ["P"] }); // the Vigilante shoots the lone-wolf Psycho
+  assert.equal(isAlive(room, "P"), false, "the Psycho is shot dead");
+  assert.equal(isAlive(room, "Vig"), true, "shooting a real killer carries no penalty");
+});
+
+test("the Item dies if it spends the night with the Psycho (a killer)", () => {
+  const room = setup({ P: "psycho", I: "item", K: "killer", V1: "villager", V2: "villager" });
+  runNight(room, { I: ["P"], K: ["V1"] });
+  assert.equal(isAlive(room, "I"), false, "visiting the Psycho is fatal — he's a killer");
+});
+
+test("the Police read the Psycho as a Killer", () => {
+  const room = setup({ Cop: "police", P: "psycho", K: "killer", V1: "villager", V2: "villager" });
+  runNight(room, { Cop: ["P"], K: ["V1"] });
+  assert.match(room.privateMessages["Cop"] ?? "", /IS a Killer/i, "the lone wolf still reads as a Killer");
+});
+
+test("two different neutrals (Psycho + Jester) are NOT a team — linked, they win as cross-team Lovers", () => {
+  // Cupid links the Psycho and the Jester. They're independent factions-of-one,
+  // so the couple counts as cross-team and can take the Lovers' win as the last two.
+  const room = setup({ Cup: "cupid", P: "psycho", J: "jester", K: "killer" });
+  runNight(room, { Cup: ["P", "J"], K: ["Cup"] }); // link P+J, Killer kills Cupid
+  assert.equal(room.phase, "day", "P, J, K still alive — no winner yet");
+  dayVote(room, { P: "K", J: "K", K: "P" }); // banish the Killer → only linked P + J remain
+  assert.equal(room.winner, "lovers", "the Psycho+Jester couple win as cross-team Lovers");
+});
+
+test("a Jester banish win names only the Jester — not a Psycho who's also neutral", () => {
+  // Both Jester and Psycho are team "neutral"; banishing the Jester must not
+  // credit the (also-neutral) Psycho on the victory roll.
+  const room = setup({ J: "jester", P: "psycho", K: "killer", V1: "villager", V2: "villager" });
+  dayVote(room, { J: "J", P: "J", K: "J", V1: "J", V2: "J" }); // town banishes the Jester
+  assert.equal(room.winner, "neutral");
+  const roll = room.log.find((e) => /Victory to/i.test(e.text))!;
+  assert.match(roll.text, /Jester/i, "the Jester is named");
+  assert.ok(!/P\b/.test(roll.text.replace(/Jester/gi, "")), "the Psycho (P) is NOT listed as a co-winner");
+});
+
 /* --------------------------- panchayat immunity --------------------------- */
 
 test("the Panchayat is immune to night kills while a Cupid lives, but lynchable", () => {
