@@ -64,6 +64,16 @@ export interface RoomView {
   nightStepLabel: string | null;
   // Host-only night board (who acted / what they chose) + next-step label.
   nightControl: NightControl | null;
+  // Host-only ("God's eye") truthful record of each resolved night: who really
+  // died, by whose hand, and who was saved — all roles named. null for players.
+  godLog: GodNightReport[] | null;
+}
+
+// One resolved night, as only the God may see it: the true cause of every death
+// and save, with all roles revealed. Built at resolution, kept for the whole game.
+export interface GodNightReport {
+  day: number;
+  lines: string[];
 }
 
 export interface NightControl {

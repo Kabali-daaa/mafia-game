@@ -173,7 +173,43 @@ function MainColumn({ view }: { view: RoomView }) {
       {view.phase === "day" && <DayPhase view={view} />}
       {view.phase === "ended" && <Ended view={view} />}
       {inRound && isHost && <HostControls view={view} />}
+      {isHost && <GodLog view={view} />}
     </div>
+  );
+}
+
+// Host-only "God's eye": the truthful record of every resolved night — who really
+// died and by whose hand, who was saved — with all roles named. Players never see
+// this; it persists for the whole game so the God can scroll back any time.
+function GodLog({ view }: { view: RoomView }) {
+  const log = view.godLog ?? [];
+  if (log.length === 0) return null;
+  return (
+    <Card>
+      <PhaseHeading emoji="👁️" title="God's eye — the truth" />
+      <p className="mt-1 text-sm text-white/50">
+        Only you see this. Who really died each night, by whose hand, and who slipped away.
+      </p>
+      <div className="mt-3 max-h-80 space-y-3 overflow-y-auto pr-1">
+        {[...log].reverse().map((night) => (
+          <div
+            key={night.day}
+            className="rounded-xl bg-white/[0.04] px-3 py-2 ring-1 ring-gold/15"
+          >
+            <div className="text-[11px] font-bold uppercase tracking-wider text-white/40">
+              🌙 Night {night.day}
+            </div>
+            <ul className="mt-1 space-y-1">
+              {night.lines.map((line, i) => (
+                <li key={i} className="text-sm leading-snug text-white/80">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 

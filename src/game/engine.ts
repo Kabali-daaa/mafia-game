@@ -5,6 +5,7 @@
 
 import type {
   ActionPrompt,
+  GodNightReport,
   HostStatus,
   LogEntry,
   NightBoardEntry,
@@ -59,6 +60,9 @@ export interface Room {
   // A hidden record of everything that happened — every night action, death, and
   // banishment — replayed (with all roles revealed) only when the game ends.
   chronicle: ChronicleScene[];
+  // Host-only "God's eye" truth: per-night, who really died and by whose hand,
+  // and who was saved — with roles named. Never sent to players, kept all game.
+  godLog: GodNightReport[];
   // An AI-written narrative recap, generated on demand once the game ends (null
   // until the God taps "Write the story"). Shared with everyone via their views.
   aiStory: string | null;
@@ -126,6 +130,7 @@ export function createRoom(code: string, host: Player): Room {
     chat: { town: [], killers: [] },
     chatSeq: 0,
     chronicle: [],
+    godLog: [],
     aiStory: null,
   };
 }
@@ -155,6 +160,12 @@ function apparentTeamOf(room: Room, playerId: string): Team | null {
 
 function nameOf(room: Room, playerId: string): string {
   return room.players.find((p) => p.id === playerId)?.name ?? "Unknown";
+}
+
+// "Name (🔪 Killer)" — used by the God-only night report, where every mask is off.
+function whoIs(room: Room, playerId: string): string {
+  const r = getRole(roleOf(room, playerId));
+  return `${nameOf(room, playerId)} (${r?.emoji ?? ""} ${r?.name ?? "Unknown"})`;
 }
 
 function get(room: Room, playerId: string): Player | undefined {
@@ -220,6 +231,7 @@ export function startGame(room: Room): void {
   room.chat = { town: [], killers: [] };
   room.chatSeq = 0;
   room.chronicle = [];
+  room.godLog = [];
   room.aiStory = null;
   room.winner = null;
   room.log = [{ phase: "night", day: 1, text: "🌙 Night 1 falls. The town sleeps..." }];
@@ -342,7 +354,10 @@ function buildNightContext(room: Room): NightContext {
 // The Killers (Killer + Godfather) act as ONE squad: however many there are, they
 // make a single kill per night — the most-chosen target (ties broken at random).
 // (The Psycho Killer is a lone wolf and kills separately.)
-function resolveKillers(room: Room, ctx: NightContext): void {
+function resolveKillers(
+  room: Room,
+  ctx: NightContext
+): { targetId: string; squad: string[] } | null {
   const killers = alivePlayers(room).filter((p) =>
     ["killer", "godfather"].includes(p.roleId ?? "")
   );
@@ -352,10 +367,12 @@ function resolveKillers(room: Room, ctx: NightContext): void {
     if (pick) counts[pick] = (counts[pick] ?? 0) + 1;
   }
   const picks = Object.keys(counts);
-  if (picks.length === 0) return; // no one chosen
+  if (picks.length === 0) return null; // no one chosen
   const max = Math.max(...picks.map((id) => counts[id]));
   const top = picks.filter((id) => counts[id] === max);
-  ctx.markedForDeath.add(top[Math.floor(Math.random() * top.length)]);
+  const targetId = top[Math.floor(Math.random() * top.length)];
+  ctx.markedForDeath.add(targetId);
+  return { targetId, squad: killers.map((k) => k.id) };
 }
 
 // The Police act as one squad: tally every cop's pick, investigate the single
@@ -527,8 +544,18 @@ export function resolveNight(room: Room): void {
   }
 
   // The Killers' single shared kill + the Police squad's single shared check.
-  resolveKillers(room, ctx);
+  const killerKill = resolveKillers(room, ctx);
   resolvePolice(room, ctx);
+
+  // Capture the Psycho's lone kills now, while they're still a Psycho — the
+  // "healed Psycho → Vigilante" transform below would otherwise rewrite the role.
+  const psychoKills: { by: string; target: string }[] = [];
+  if (room.day % 2 === 1) {
+    for (const psy of aliveWithRole(room, "psycho")) {
+      const t = room.nightActions[psy.id]?.[0];
+      if (t) psychoKills.push({ by: psy.id, target: t });
+    }
+  }
 
   // A Witch who chose to save someone spends one of her two uses.
   for (const w of aliveWithRole(room, "witch")) {
@@ -542,6 +569,13 @@ export function resolveNight(room: Room): void {
   // The Item's chosen visit + the night's death groups.
   const groups = computeDeaths(room, ctx, ctx.itemTargets);
 
+  // God's-eye truth: who really died, by whose hand, and who was saved — built
+  // now, before the Psycho transform rewrites any roles. (Host-only.)
+  room.godLog.push({
+    day: room.day,
+    lines: buildGodReport(room, ctx, groups, killerKill, psychoKills),
+  });
+
   // A Psycho Killer healed by the Doctor (or saved by the Witch) secretly
   // becomes a Vigilante.
   for (const psycho of aliveWithRole(room, "psycho")) {
@@ -553,6 +587,77 @@ export function resolveNight(room: Room): void {
   }
 
   finalizeNight(room, groups, acts);
+}
+
+// Build the God-only truth for one resolved night: one line per real death
+// (victim + role, and exactly who/what killed them) and one per save that
+// landed. Pure read of the night context — never shown to players.
+function buildGodReport(
+  room: Room,
+  ctx: NightContext,
+  groups: DeathGroup[],
+  killerKill: { targetId: string; squad: string[] } | null,
+  psychoKills: { by: string; target: string }[]
+): string[] {
+  const deadIds = new Set(groups.flatMap((g) => g.members));
+
+  // Primary cause for each seeded victim (the killer squad / lone wolf / etc.).
+  const cause: Record<string, string> = {};
+  if (killerKill && deadIds.has(killerKill.targetId)) {
+    const squad = killerKill.squad.map((id) => whoIs(room, id)).join(", ");
+    cause[killerKill.targetId] = `killed by the Killers — ${squad}`;
+  }
+  for (const pk of psychoKills) {
+    if (deadIds.has(pk.target))
+      cause[pk.target] = `slain by the Psycho Killer — ${nameOf(room, pk.by)}`;
+  }
+  for (const [shooterId, targetId] of Object.entries(ctx.vigilanteShots)) {
+    if (deadIds.has(targetId))
+      cause[targetId] = `shot dead by the Vigilante — ${nameOf(room, shooterId)}`;
+    if (deadIds.has(shooterId) && cause[shooterId] == null)
+      cause[shooterId] =
+        `died for shooting an innocent — the Vigilante's own price`;
+  }
+  for (const [itemId, targetId] of Object.entries(ctx.itemTargets)) {
+    if (deadIds.has(itemId) && cause[itemId] == null)
+      cause[itemId] =
+        `the Item, drawn to a Killer (${whoIs(room, targetId)}), didn't survive the visit`;
+  }
+
+  const lovers = room.roleState.lovers;
+  const lines: string[] = [];
+  for (const g of groups) {
+    for (const id of g.members) {
+      let line = cause[id];
+      if (!line) {
+        if (lovers && (lovers[0] === id || lovers[1] === id)) {
+          const partner = lovers[0] === id ? lovers[1] : lovers[0];
+          line = `died of a broken heart — Cupid bound them to ${nameOf(room, partner)}`;
+        } else if (ctx.itemTargets[id] != null) {
+          line = `the Item followed ${nameOf(room, ctx.itemTargets[id])} into death`;
+        } else {
+          line = `died, bound to ${nameOf(room, g.primary)}'s fate`;
+        }
+      }
+      lines.push(`☠️ ${whoIs(room, id)} — ${line}`);
+    }
+  }
+
+  // Attacks that were turned aside (Doctor/Witch heal, or an untouchable target).
+  const attacked = new Set<string>();
+  if (killerKill) attacked.add(killerKill.targetId);
+  for (const pk of psychoKills) attacked.add(pk.target);
+  for (const t of Object.values(ctx.vigilanteShots)) attacked.add(t);
+  for (const id of attacked) {
+    if (deadIds.has(id) || !get(room, id)?.alive) continue;
+    const reason = ctx.protectedIds.has(id)
+      ? "a healer's protection held"
+      : "the attack didn't land";
+    lines.push(`🛡️ ${whoIs(room, id)} — attacked tonight, but ${reason}`);
+  }
+
+  if (lines.length === 0) lines.push("☀️ A quiet night — no one was harmed.");
+  return lines;
 }
 
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -1136,6 +1241,7 @@ export function resetToLobby(room: Room): void {
   room.chat = { town: [], killers: [] };
   room.chatSeq = 0;
   room.chronicle = [];
+  room.godLog = [];
   room.aiStory = null;
   room.log = [];
   for (const p of room.players) {
@@ -1279,6 +1385,8 @@ export function buildView(room: Room, viewerId: string): RoomView {
             waitingCount: currentStepBlockers(room).length,
           }
         : null,
+    // Host-only "God's eye" truth log of every resolved night.
+    godLog: isHost ? room.godLog : null,
   };
 }
 
