@@ -39,29 +39,41 @@ Two main sides are fighting (plus a lone trickster):
 
 | Side | Wins when… |
 |------|------------|
-| 🔵 **Town** | **every Killer is eliminated** |
-| 🔴 **Killers** | the Killers **equal or outnumber** everyone else still alive |
-| 🟡 **Jester** (neutral) | the town **votes the Jester out** |
+| 🔵 **Town** | **every killer is eliminated** — the Killers' squad **and** the Psycho |
+| 🔴 **Killers** | the Killers **equal or outnumber** everyone else (and **no Psycho is alive**) |
+| 🪓 **Psycho Killer** (neutral) | he reaches **parity** — the last one standing, down to a 1-v-1 |
+| 🤡 **Jester** (neutral) | the town **votes the Jester out** |
 | 💞 **Lovers** (cross-team couple) | the two linked Lovers are the **last two players alive** |
 
-The Town finds and votes out the Killers by day; the Killers quietly pick off the
-Town by night. The Jester plays for itself and wins only by getting voted out (banished).
+The Town finds and votes out the killers by day; the Killers quietly pick off the
+Town by night. The two **neutrals each play for themselves** — the Jester wins only by
+getting voted out (banished), while the **Psycho is a lone wolf** who answers to no one
+and wins by outlasting everyone.
 
 ### Every winning scenario in detail
 
 The game checks for a winner **after each night is resolved** and **after every day
 elimination**. The first side to meet its condition wins immediately.
 
-- 🔵 **Town victory — all Killers gone.** The moment the number of living
-  Killer-side players (Killer + Godfather + Psycho) hits **zero**, the Town wins.
-  This can happen by a **day vote** (banishing the last Killer) or at **night**
-  (e.g. the Vigilante shoots the last Killer, or a Killer is caught in the Item's /
-  Lovers' linked fate).
+- 🔵 **Town victory — every killer gone.** The moment the number of living
+  killers hits **zero** — that's the Killers' squad (Killer + Godfather) **and** the
+  lone-wolf Psycho — the Town wins. This can happen by a **day vote** (banishing the
+  last killer) or at **night** (e.g. the Vigilante shoots the last Killer, or a killer
+  is caught in the Item's / Lovers' linked fate). **A living Psycho blocks the Town
+  win**, so the town must hunt him down too.
 - 🔴 **Killers victory — parity.** As soon as the living Killers **equal or
-  outnumber** everyone else alive (`killers ≥ everyone-else`), the Killers win — they
-  can no longer be out-voted. This usually triggers at **night** after a kill brings
-  the town down to the Killers' level, but it can also trigger **by day** if a vote
-  banishes a townsperson and tips the balance.
+  outnumber** everyone else alive (`killers ≥ everyone-else`) **and no Psycho is left
+  alive**, the Killers win — they can no longer be out-voted. This usually triggers at
+  **night** after a kill brings the town down to the Killers' level, but it can also
+  trigger **by day** if a vote banishes a townsperson and tips the balance. **A living
+  Psycho blocks this win too** — the Killers must take him out first, even if they're
+  already at parity with everyone else.
+- 🪓 **Psycho victory — last one standing.** The Psycho is a **neutral lone wolf** who
+  answers to no one. He's checked **first**, before the Town/Killers contest: while he's
+  alive, **neither the Town nor the Killers can win**. He himself wins the moment he
+  reaches **parity** — when the living Psychos equal-or-outnumber everyone else, i.e. a
+  final **1-v-1** or being the last soul alive. (A Psycho the Doctor has healed is no
+  longer a Psycho — he's a Vigilante now, and wins **with the Town** instead.)
 - 🟡 **Jester victory — banished.** The Jester wins **instantly and alone** the moment
   the **town votes them out** during the day — banished to live free in the forest, just
   as they dreamed. (Being killed at *night* does **not**
@@ -80,7 +92,11 @@ elimination**. The first side to meet its condition wins immediately.
 
 - **Surviving neutrals delay a Killer win.** A living Jester counts as one of
   "everyone else," so the Killers need one more kill to reach parity while the Jester
-  is still around.
+  is still around. A living **Psycho** does more than delay — he **flat-out blocks**
+  both the Killers' and the Town's win until he's dead.
+- **Two neutrals are not a team.** The Jester and the Psycho are both "neutral," but
+  each is an independent faction-of-one — they don't win together. If Cupid links them,
+  the couple counts as **cross-team** and can take the Lovers' win as the last two alive.
 - **Lovers die together** — a night kill or a daytime banishment of one Lover kills the
   other of heartbreak. If they're on the **same** side they don't form a separate couple (their
   shared team's condition decides); if they're **cross-team** they win as a couple by
@@ -175,7 +191,6 @@ If two or more players tie for the most votes:
 |------|-------|
 | 🔪 **Killer** | Each night the Killers — **as a team** — choose **one** player to eliminate. Even with several Killers + the Godfather, it's still **one kill per night** (the most-chosen target; ties broken at random). |
 | 🎩 **Godfather** | Eliminates like a Killer, **but reads as innocent** if the Police investigate them. |
-| 🪓 **Psycho Killer** | A lone killer who strikes **only on odd nights** (1, 3, 5…). **Twist:** if the Doctor ever heals the Psycho, they **secretly transform into a 🔫 Vigilante** (Town) — only they are told. |
 
 ### 🔵 Town
 | Role | Power |
@@ -192,6 +207,7 @@ If two or more players tie for the most votes:
 ### 🟡 Neutral
 | Role | Power |
 |------|-------|
+| 🪓 **Psycho Killer** | A **lone wolf who answers to no one** — allied with neither side. Strikes **only on odd nights** (1, 3, 5…). While he lives, **neither the Town nor the Killers can win**, so both must hunt him down; he wins by being the **last one standing** (down to a 1-v-1, he takes it). The **Police read him as a Killer**. **Twist:** if the Doctor ever heals the Psycho, he **secretly transforms into a 🔫 Vigilante** and joins the Town — only he is told. |
 | 🤡 **Jester** | A lone trickster who **dreams of being banished to live free in the forest** — so they **win instantly if the town votes them out**. No night power; their whole game is acting suspicious enough to get voted out. Being killed by the Killers at night is the one fate they dread. |
 
 ---

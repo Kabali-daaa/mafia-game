@@ -782,15 +782,16 @@ function HelpModal({ onClose }: { onClose: () => void }) {
               <div>
                 <h3 className="font-bold text-white">🏆 How to win</h3>
                 <ul className="mt-1 space-y-1.5">
-                  <li>🔵 <b>Town</b> — win when <b>every Killer is eliminated</b>.</li>
-                  <li>🔴 <b>Killers</b> — win when they <b>equal or outnumber</b> everyone else still alive.</li>
+                  <li>🔵 <b>Town</b> — win when <b>every killer is eliminated</b> — the Killers' squad <b>and</b> the Psycho.</li>
+                  <li>🔴 <b>Killers</b> — win when they <b>equal or outnumber</b> everyone else still alive (and <b>no Psycho is left</b>).</li>
+                  <li>🪓 <b>Psycho Killer</b> — a <b>lone wolf</b>; while he lives <b>nobody else can win</b>. He wins by being the <b>last one standing</b> (down to a 1-v-1).</li>
                   <li>🤡 <b>Jester</b> — wins <b>alone &amp; instantly</b> if the town <b>votes them out</b> (banished to the forest). Being murdered at <i>night</i> does <b>not</b> count.</li>
                   <li>💞 <b>Lovers</b> — a Cupid couple from <b>opposite sides</b> (e.g. a Cop + a Killer) win <b>together</b> if they're the <b>last two players alive</b>.</li>
                 </ul>
                 <p className="mt-2 text-xs text-white/45">
                   The winner is checked after every night and every day vote — the first
-                  side to meet its condition wins. A living Jester counts toward
-                  &ldquo;everyone else,&rdquo; delaying a Killer win.
+                  side to meet its condition wins. A living Jester delays a Killer win;
+                  a living <b>Psycho blocks both</b> the Town and the Killers until he&rsquo;s dead.
                 </p>
               </div>
               <div>
@@ -817,7 +818,8 @@ function HelpModal({ onClose }: { onClose: () => void }) {
               <div>
                 <h3 className="font-bold text-white">🃏 Twists & powers</h3>
                 <ul className="mt-1 space-y-1.5">
-                  <li>🩺→🔫 A <b>Psycho the Doctor heals</b> secretly turns <b>Vigilante</b> — now hunting Killers on odd nights (shoot an innocent and you die too).</li>
+                  <li>🪓 The <b>Psycho</b> is a <b>lone-wolf neutral</b> — allied with no one, striking on odd nights. The <b>Police read him as a Killer</b>, and while he lives neither side can win.</li>
+                  <li>🩺→🔫 A <b>Psycho the Doctor heals</b> secretly turns <b>Vigilante</b> and joins the Town — now hunting Killers on odd nights (shoot an innocent and you die too).</li>
                   <li>💘 <b>Lovers share a fate</b> — lose one, lose both, even by banishment.</li>
                   <li>🏛️ The <b>Panchayat</b> can't be killed at night while a <b>Cupid</b> still lives.</li>
                   <li>🎲 The <b>Item</b> dies if she spends the night with a <b>Killer</b>, or if that person dies that night.</li>
